@@ -810,6 +810,18 @@ public class Crawler {
 			apiResponse.put("items", error);
 			return new Viewable("/exception/error", apiResponse);
 		}else{
+			try {
+				secure.insertLimitCrawler(username, collectionId);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				errorProperty.put("code", "500");
+				errorProperty.put("message", "Failed");
+				errorProperty.put("detail", "Internal Server Error");
+				
+				error.add(errorProperty);
+			}
 			Map<String,Object> property = new HashMap<String,Object>();
 			
 			property.put("message", "successful");
