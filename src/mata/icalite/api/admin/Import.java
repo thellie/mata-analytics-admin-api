@@ -277,6 +277,8 @@ public class Import {
 		Security secure = new Security();
 		FileManager fm = new FileManager();
 		String randomName = Integer.toString(randInt(10000, 99999));
+		
+		String jarResourceDir = caxHome + "\\example\\resources\\jar\\crawler";
 
 		try{
 			username = secure.getUser(session);
@@ -293,7 +295,9 @@ public class Import {
 				if(!file.exists()){
 					fm.createDir(importDir);
 				}
-
+				
+				fm.copyFile(jarResourceDir + "\\csvimport.jar", importDir + "\\csvimport.jar");
+				fm.fileWriter(importDir + "\\start.cfg", "startcrawl=stop\r\npid=", false);
 			}
 		}
 		catch(Exception e){

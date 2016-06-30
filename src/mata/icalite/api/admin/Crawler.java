@@ -1540,6 +1540,9 @@ public class Crawler {
 		else if(type.equals("instagram")){
 			type = "igcrawler.jar";
 		}
+		else if(type.equals("csv")){
+			type = "csvimport.jar";
+		}
 		
 		if(new File(collectionDir + "\\"+type).exists()){
 			
