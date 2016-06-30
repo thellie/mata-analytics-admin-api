@@ -20,6 +20,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.impl.XMLResponseParser;
@@ -47,6 +48,7 @@ public class Collection {
 	private int SLEEP_DELETE_RETRY_MS = 2000;
 	ArrayList<String> collectionLists = null;
 	private String groupName = null;
+	private Logger sysLogger = null;
 	
 	public Collection(){
 		caxHome = System.getenv("SOLR_HOME");
@@ -60,6 +62,8 @@ public class Collection {
 		
 		sc = new SystemControl();
 		json = new Json();
+		
+		sysLogger = Logger.getLogger(Collection.class);
 	}
 	
 	@GET
@@ -82,6 +86,9 @@ public class Collection {
 				property.put("value", "1");
 				
 				apiResponse.put("items", property);
+				
+				writeLog("Session expired. token: " + session, "info");
+				
 				return new Viewable("/general/ack", apiResponse);
 			}
 			else {
@@ -103,6 +110,8 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 			}
@@ -113,6 +122,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -126,6 +137,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -154,6 +167,9 @@ public class Collection {
 					+ "passed in");
 			
 			apiResponse.put("items", errorProperty);
+			
+			writeLog("Method not allowed: " + method, "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}
 	}
@@ -178,6 +194,9 @@ public class Collection {
 				property.put("value", "1");
 				
 				apiResponse.put("items", property);
+				
+				writeLog("Session expired. token: " + session, "info");
+				
 				return new Viewable("/general/ack", apiResponse);
 			}
 			else {
@@ -190,7 +209,9 @@ public class Collection {
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-//					error.add(errorProperty);
+					error.add(errorProperty);
+					
+					writeLog(e, "error");
 					
 					e.printStackTrace();
 				}
@@ -213,6 +234,8 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 				
@@ -229,6 +252,8 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 			}
@@ -239,6 +264,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -265,6 +292,9 @@ public class Collection {
 					+ "passed in");
 			
 			apiResponse.put("items", errorProperty);
+			
+			writeLog("Method not allowed: " + method, "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}
 	}
@@ -276,7 +306,8 @@ public class Collection {
 		Map<String, String> jsonElements = null;	
 		Security secure = new Security();
 		
-		String configResourceDirV2 = caxHome + "\\example\\resources\\config_template\\collectionV2\\";
+		String configResourceDirV2 = caxHome + 
+				"\\example\\resources\\config_template\\collectionV2\\";
 		
 		try{
 			String username = secure.getUser(session);	
@@ -291,10 +322,13 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 				
-				String collectionDir = collectionHome + "\\" + jsonElements.get("collectionId");
+				String collectionDir = collectionHome + "\\" + jsonElements.get(
+						"collectionId");
 	
 		        SolrServer server = new HttpSolrServer(URL);
 		        ((HttpSolrServer) server).setParser(new XMLResponseParser());
@@ -304,10 +338,16 @@ public class Collection {
 		        if(collectionDirFile.isDirectory()){
 		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
-					errorProperty.put("message", "Collection already exist.");
-					errorProperty.put("detail", "Choose different ID for collection.");
+					
+					String message = "Collection already exist.";
+					String detail = "Choose different ID for collection.";
+					
+					errorProperty.put("message", message);
+					errorProperty.put("detail", detail);
 					
 					error.add(errorProperty);
+					
+					writeLog(message + detail, "error");
 		        }else{
 		        	collectionDirFile.mkdirs();
 		        	ArrayList<String> listPear = new ArrayList<String>();
@@ -321,7 +361,8 @@ public class Collection {
 		        }
 		       
 		        try {
-		        	FileUtils.copyDirectory(new File(configResourceDirV2), collectionDirFile);
+		        	FileUtils.copyDirectory(new File(configResourceDirV2), 
+		        			collectionDirFile);
 				} catch (Exception e) {
 					Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
@@ -329,6 +370,8 @@ public class Collection {
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
 					error.add(errorProperty);
+					
+					writeLog(e, "error");
 					
 					e.printStackTrace();
 				}
@@ -342,11 +385,22 @@ public class Collection {
 					FileManager fm = new FileManager();
 					for(String fileToChange : listFileToChange){
 						String content = fm.readData(fileToChange);
-						content = content.replace("COLGROUP-DEV-MasterTemplate", collectionId);
+						content = content.replace("COLGROUP-DEV-MasterTemplate", 
+								collectionId);
 						fm.fileWriter(fileToChange, content, false);
 					}
-					new FileManager().fileWriter(collectionDir+"\\status.collection", "status=unloaded", false);
+					new FileManager().fileWriter(collectionDir+"\\status.collection", 
+							"status=unloaded", false);
 				} catch (Exception e) {
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 		        
@@ -367,7 +421,8 @@ public class Collection {
 		        
 		        try {
 					CoreAdminRequest.createCore(collectionId, collectionId, server);
-					new FileManager().fileWriter(collectionDir+"\\status.collection", "status=idle", false);
+					new FileManager().fileWriter(collectionDir+"\\status.collection", 
+							"status=idle", false);
 				} catch (Exception e) {
 					Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
@@ -376,17 +431,7 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
-					e.printStackTrace();
-				}
-				try {
-					
-				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
-					errorProperty.put("code", "500");
-					errorProperty.put("message", e.toString());
-					errorProperty.put("detail", sc.getStackTrace(e));
-					
-					error.add(errorProperty);
+					writeLog(e, "error");
 					
 					e.printStackTrace();
 				}
@@ -395,7 +440,8 @@ public class Collection {
 					apiResponse.put("items", error);
 					return new Viewable("/exception/error", apiResponse);
 				}else{
-					System.out.println("User : "+username+" creating collection : "+collectionId+"!");
+					System.out.println("User : "+username+" creating collection : " + 
+							collectionId+"!");
 					secure.addPrivilage(session, collectionId);
 					secure.addAdminPrivilage(collectionId);
 					secure.insertLimitCollection(username);
@@ -407,16 +453,25 @@ public class Collection {
 					property.put("value", "0");
 					
 					apiResponse.put("items", property);
+					
+					writeLog("Collection was created successfully.", "info");
+					
 					return new Viewable("/general/ack", apiResponse);
 				}
 			}
 			else{
 				Map<String,Object> property = new HashMap<String,Object>();
 				
-				property.put("message", "collection reach max");
+				String message = "Collection limit was reached."
+						+ "Unable create new collection";
+				
+				property.put("message", message);
 				property.put("value", "2");
 				
 				apiResponse.put("items", property);
+				
+				writeLog(message, "info");
+				
 				return new Viewable("/general/ack", apiResponse);
 			}
 		}
@@ -427,6 +482,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -441,10 +498,11 @@ public class Collection {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Collection was created successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
-
-		
 	}
 	
 	private Viewable create(String body,String session){
@@ -467,6 +525,8 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 				
@@ -486,11 +546,18 @@ public class Collection {
 		        File jarCollectionDirFile = new File(jarCollectionDir);
 		        File descCollectionDirFile = new File(descCollectionDir);
 		        FileManager fman = new FileManager();
+		        
 		        if(collectionDirFile.isDirectory()){
 		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
-					errorProperty.put("message", "Collection already exist.");
-					errorProperty.put("detail", "Choose different ID for collection.");
+					
+					String message = "Collection already exist.";
+					String detail = "Choose different ID for collection.";
+					
+					errorProperty.put("message", message);
+					errorProperty.put("detail", detail);
+					
+					writeLog(message + detail, "error");
 					
 					error.add(errorProperty);
 		        }else{
@@ -1110,5 +1177,24 @@ public class Collection {
 		listFileToChange.add(collectionDir+"\\StartPearManager.bat");		
 		
 		return listFileToChange;
+	}
+	
+	private void writeLog(Object content, String type){
+		if(type.equals("debug")){
+			sysLogger.debug(content);
+			//userLogger.debug(content);
+		}else if(type.equals("info")){
+			sysLogger.info(content);
+			//userLogger.info(content);
+		}else if(type.equals("warn")){
+			sysLogger.warn(content);
+			//userLogger.warn(content);
+		}else if(type.equals("error")){
+			sysLogger.error(content);
+			//userLogger.error(content);
+		}else if(type.equals("fatal")){
+			sysLogger.fatal(content);
+			//userLogger.fatal(content);
+		}
 	}
 }

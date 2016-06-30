@@ -280,29 +280,7 @@ public class ParsingIndex {
 			// TODO Auto-generated catch block
 			e3.printStackTrace();
 		}
-		
-//		Crawler crawler = new Crawler();
-//		
-//		boolean isAnyCrawlerRun = crawler.isAnyCrawlerRun(collectionId);
-//		
-//		if(isAnyCrawlerRun){
-//			Map<String,Object> errorProperty = new HashMap<String,Object>();
-//			errorProperty.put("code", "500");
-//			String message = "Unable to proceed because of running crawler.";
-//			String detail = "Stop all the crawlers and try to delete collection again.";
-//			
-//			errorProperty.put("message", message);
-//			errorProperty.put("detail", detail);
-//			
-//			error.add(errorProperty);
-//			
-////			System.out.println(message + "\n" + detail);
-//			
-//			apiResponse.put("items", error);
-//			return new Viewable("/exception/error", apiResponse);
-//		}
-		
-		
+
 		SolrServer server = new HttpSolrServer(URL);
 		((HttpSolrServer) server).setParser(new XMLResponseParser());
 		
@@ -310,14 +288,6 @@ public class ParsingIndex {
 			new FileManager().fileWriter(collectionStatus, "status=reloading", false);
 			CoreAdminRequest.unloadCore(collectionId, false, false, server);
 		} catch (Exception e) {
-//			Map<String,Object> errorProperty = new HashMap<String,Object>();
-//			errorProperty.put("code", "500");
-//			errorProperty.put("message", e.toString());
-//			errorProperty.put("detail", sc.getStackTrace(e));
-//			
-////			error.add(errorProperty);
-//			
-//			e.printStackTrace();
 			System.out.println("failed to unload, maybe already unloaded..");
 		}
 		
@@ -344,6 +314,7 @@ public class ParsingIndex {
 		try {
 			Thread.sleep(5000);
 				CoreAdminRequest.createCore(collectionId, collectionId, server);
+				System.out.println("done!");
 			} catch (Exception e) {
 				Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
@@ -355,19 +326,19 @@ public class ParsingIndex {
 				e.printStackTrace();
 		}
 		
-		try{
-			testReloadedCollection(collectionId);
-		}
-		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
-			errorProperty.put("code", "500");
-			errorProperty.put("message", "Collection Critical Error - "+e.getMessage());
-			errorProperty.put("detail", "please ask administrator for troubleshoot - "+sc.getStackTrace(e));
-			
-			error.add(errorProperty);
-			
-			e.printStackTrace();
-		}
+//		try{
+//			testReloadedCollection(collectionId);
+//		}
+//		catch(Exception e){
+//			Map<String,Object> errorProperty = new HashMap<String,Object>();
+//			errorProperty.put("code", "500");
+//			errorProperty.put("message", "Collection Critical Error - "+e.getMessage());
+//			errorProperty.put("detail", "please ask administrator for troubleshoot - "+sc.getStackTrace(e));
+//			
+//			error.add(errorProperty);
+//			
+//			e.printStackTrace();
+//		}
 			
 		
 		if(error.size() > 0){
