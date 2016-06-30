@@ -49,6 +49,7 @@ public class Collection {
 	ArrayList<String> collectionLists = null;
 	private String groupName = null;
 	private Logger sysLogger = null;
+	private String username = null;
 	
 	public Collection(){
 		caxHome = System.getenv("SOLR_HOME");
@@ -93,7 +94,7 @@ public class Collection {
 			}
 			else {
 				try{
-					String username = secure.getUser(session);
+					username = secure.getUser(session);
 					groupName = secure.getGroupDerby(username);
 					
 					if (collectionId != null && 
@@ -217,7 +218,7 @@ public class Collection {
 				}
 				
 				try{
-					String username = secure.getUser(session);
+					username = secure.getUser(session);
 					groupName = secure.getGroupDerby(username);
 					
 					if (collectionId != null && 
@@ -308,9 +309,10 @@ public class Collection {
 		
 		String configResourceDirV2 = caxHome + 
 				"\\example\\resources\\config_template\\collectionV2\\";
+		String collectionId = null;
 		
 		try{
-			String username = secure.getUser(session);	
+			username = secure.getUser(session);	
 			if(secure.derbyCheckCollection(username)){
 				try {
 					jsonElements = json.parse(body);
@@ -327,8 +329,8 @@ public class Collection {
 					e.printStackTrace();
 				}
 				
-				String collectionDir = collectionHome + "\\" + jsonElements.get(
-						"collectionId");
+				collectionId = jsonElements.get("collectionId");
+				String collectionDir = collectionHome + "\\" + collectionId;
 	
 		        SolrServer server = new HttpSolrServer(URL);
 		        ((HttpSolrServer) server).setParser(new XMLResponseParser());
@@ -339,8 +341,8 @@ public class Collection {
 		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					
-					String message = "Collection already exist.";
-					String detail = "Choose different ID for collection.";
+					String message = "Collection ID: " + collectionId + " is already exist.";
+					String detail = "Choose different collection ID.";
 					
 					errorProperty.put("message", message);
 					errorProperty.put("detail", detail);
@@ -348,6 +350,8 @@ public class Collection {
 					error.add(errorProperty);
 					
 					writeLog(message + detail, "error");
+					
+					System.out.println(message + detail);
 		        }else{
 		        	collectionDirFile.mkdirs();
 		        	ArrayList<String> listPear = new ArrayList<String>();
@@ -376,7 +380,7 @@ public class Collection {
 					e.printStackTrace();
 				}
 		        
-		        String collectionId = jsonElements.get("collectionId").replace(" ", "_");
+		        //String collectionId = jsonElements.get("collectionId").replace(" ", "_");
 	//			System.out.println("coldir" +collectionDir);
 				try {
 					//changing MasterTemplate to current collectoinId
@@ -454,7 +458,7 @@ public class Collection {
 					
 					apiResponse.put("items", property);
 					
-					writeLog("Collection was created successfully.", "info");
+					writeLog("Collection ID: " + collectionId + " was created successfully.", "info");
 					
 					return new Viewable("/general/ack", apiResponse);
 				}
@@ -499,7 +503,7 @@ public class Collection {
 			
 			apiResponse.put("items", property);
 			
-			writeLog("Collection was created successfully.", "info");
+			writeLog("Collection ID: " + collectionId + " was created successfully.", "info");
 			
 			return new Viewable("/general/ack", apiResponse);
 		}
@@ -512,8 +516,10 @@ public class Collection {
 		Map<String, String> jsonElements = null;	
 		Security secure = new Security();
 		
+		String collectionId = null;
+		
 		try{
-			String username = secure.getUser(session);	
+			username = secure.getUser(session);	
 			if(secure.derbyCheckCollection(username)){
 				try {
 					jsonElements = json.parse(body);
@@ -530,7 +536,8 @@ public class Collection {
 					e.printStackTrace();
 				}
 				
-				String collectionDir = collectionHome + "\\" + jsonElements.get("collectionId");
+				collectionId = jsonElements.get("collectionId");
+				String collectionDir = collectionHome + "\\" + collectionId;
 				String configCollectionDir = collectionHome + "\\" + jsonElements.get("collectionId") +
 						"\\conf";
 				String jarCollectionDir = collectionHome + "\\" + jsonElements.get("collectionId") +
@@ -551,8 +558,8 @@ public class Collection {
 		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					
-					String message = "Collection already exist.";
-					String detail = "Choose different ID for collection.";
+					String message = "Collection ID: " + collectionId + " already exist.";
+					String detail = "Choose different collection ID.";
 					
 					errorProperty.put("message", message);
 					errorProperty.put("detail", detail);
@@ -587,6 +594,8 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 		        
@@ -594,10 +603,19 @@ public class Collection {
 				try {
 					new FileManager().fileWriter(collectionDir+"\\status.collection", "status=idle", false);
 				} catch (Exception e) {
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 				
-		        String collectionId = jsonElements.get("collectionId").replace(" ", "_");
+		        //String collectionId = jsonElements.get("collectionId").replace(" ", "_");
 		        
 		        if(new File(collectionHome + "\\" + collectionId).isDirectory()){
 		        	Pattern pattern = Pattern.compile("[0-9]*$");
@@ -633,6 +651,8 @@ public class Collection {
 					
 					error.add(errorProperty);
 					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 				
@@ -652,16 +672,25 @@ public class Collection {
 					property.put("value", "0");
 					
 					apiResponse.put("items", property);
+					
+					writeLog("Collection ID: " + collectionId + " was created successfully.", "info");
+					
 					return new Viewable("/general/ack", apiResponse);
 				}
 			}
 			else{
 				Map<String,Object> property = new HashMap<String,Object>();
 				
-				property.put("message", "collection reach max");
+				String message = "Collection limit was reached."
+						+ "Unable create new collection";
+				
+				property.put("message", message);
 				property.put("value", "2");
 				
 				apiResponse.put("items", property);
+				
+				writeLog(message, "info");
+				
 				return new Viewable("/general/ack", apiResponse);
 			}
 		}
@@ -672,6 +701,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -686,10 +717,11 @@ public class Collection {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Collection ID: " + collectionId + " was created successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
-
-		
 	}
 	
 	private Viewable delete(String collectionId, String session){
@@ -708,8 +740,9 @@ public class Collection {
 			if(isAnyCrawlerRun){
 				Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
-				String message = "Unable to delete because of running crawler.";
-				String detail = "Stop all the crawlers and try to delete collection again.";
+				String message = "Unable to delete collection: " + collectionId + 
+						" because of its running crawler(s).";
+				String detail = "Stop all the crawler(s) and try to delete collection again.";
 				
 				errorProperty.put("message", message);
 				errorProperty.put("detail", detail);
@@ -719,6 +752,9 @@ public class Collection {
 //				System.out.println(message + "\n" + detail);
 				
 				apiResponse.put("items", error);
+				
+				writeLog(message + detail, "info");
+				
 				return new Viewable("/exception/error", apiResponse);
 			}
 			
@@ -737,6 +773,8 @@ public class Collection {
 						
 						error.add(errorProperty);
 						
+						writeLog(e, "error");
+						
 						e.printStackTrace();
 					}
 				}
@@ -747,6 +785,8 @@ public class Collection {
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
 				error.add(errorProperty);
+				
+				writeLog(e, "error");
 				
 				e.printStackTrace();
 			}
@@ -783,6 +823,8 @@ public class Collection {
 									
 									error.add(errorProperty);
 									
+									writeLog(e1, "error");
+									
 									e1.printStackTrace();
 								}
 							}
@@ -792,6 +834,15 @@ public class Collection {
 							try {
 								Thread.sleep(SLEEP_DELETE_RETRY_MS);
 							} catch (InterruptedException e1) {
+								Map<String,Object> errorProperty = new HashMap<String,Object>();
+								errorProperty.put("code", "500");
+								errorProperty.put("message", e1.toString());
+								errorProperty.put("detail", sc.getStackTrace(e1));
+								
+								error.add(errorProperty);
+								
+								writeLog(e1, "error");
+								
 								e1.printStackTrace();
 							}
 						}
@@ -806,6 +857,8 @@ public class Collection {
 							
 							error.add(errorProperty);
 							
+							writeLog(e1, "error");
+							
 							e1.printStackTrace();
 						}
 						
@@ -815,6 +868,8 @@ public class Collection {
 						errorProperty.put("detail", sc.getStackTrace(e));
 						
 						error.add(errorProperty);
+						
+						writeLog(e, "error");
 						
 						e.printStackTrace();
 					}
@@ -835,6 +890,8 @@ public class Collection {
 				
 				error.add(errorProperty);
 				
+				writeLog(e, "error");
+				
 				e.printStackTrace();
 			}
 			
@@ -848,6 +905,9 @@ public class Collection {
 				property.put("value", "0");
 				
 				apiResponse.put("items", property);
+				
+				writeLog("Collection ID: " + collectionId + " was deleted successfully.", "info");
+				
 				return new Viewable("/general/ack", apiResponse);
 			}
 		}
@@ -858,6 +918,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -872,6 +934,9 @@ public class Collection {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Collection ID: " + collectionId + " was deleted successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -892,14 +957,18 @@ public class Collection {
 			
 			error.add(errorProperty);
 			
+			writeLog(e, "error");
+			
 			e.printStackTrace();
 		}
 		
 		SolrServer server = new HttpSolrServer(URL);
         ((HttpSolrServer) server).setParser(new XMLResponseParser());
         
+        String collectionId = jsonElements.get("collectionId");
+        
         try {
-			CoreAdminRequest.renameCore(jsonElements.get("collectionId"), 
+			CoreAdminRequest.renameCore(collectionId, 
 					jsonElements.get("newCollectionId"), server);
 		} catch (Exception e) {
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
@@ -908,6 +977,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -921,7 +992,10 @@ public class Collection {
 			property.put("message", "successful");
 			property.put("value", "0");
 			
-			apiResponse.put("items", property);
+			apiResponse.put("items", property);			
+			
+			writeLog("Collection ID: " + collectionId + " was edited successfully.", "info");
+
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -942,6 +1016,8 @@ public class Collection {
 			
 			error.add(errorProperty);
 			
+			writeLog(e, "error");
+			
 			e.printStackTrace();
 		}
 		
@@ -955,6 +1031,9 @@ public class Collection {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Collection ID: " + collectionId + " ,location: " + location, "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 		
@@ -983,6 +1062,8 @@ public class Collection {
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
 			error.add(errorProperty);
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -1089,6 +1170,9 @@ public class Collection {
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			apiResponse.put("items", collectionDefinition);
+			
+			writeLog("Collection list retrieved successfully.", "info");
+			
 			return new Viewable("/collection/getList", apiResponse);
 		}
 	}
@@ -1118,7 +1202,15 @@ public class Collection {
 			try {
 				new FileManager().fileWriter(collectionStatus, "status=idle", false);
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
+				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				errorProperty.put("code", "500");
+				errorProperty.put("message", e.toString());
+				errorProperty.put("detail", sc.getStackTrace(e));
+				
+				error.add(errorProperty);
+				
+				writeLog(e, "error");
+				
 				e.printStackTrace();
 			}
 		}
@@ -1138,6 +1230,8 @@ public class Collection {
 			
 			error.add(errorProperty);
 			
+			writeLog(e, "error");
+			
 			e.printStackTrace();			
 		}
 		
@@ -1151,6 +1245,9 @@ public class Collection {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Collection ID: " + collectionId + " status retrieved successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 		
@@ -1180,6 +1277,7 @@ public class Collection {
 	}
 	
 	private void writeLog(Object content, String type){
+		content = "USER:" + username + " " + content;
 		if(type.equals("debug")){
 			sysLogger.debug(content);
 			//userLogger.debug(content);
