@@ -34,6 +34,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.json.XML;
 import org.w3c.dom.Document;
@@ -52,6 +53,10 @@ public class Crawler {
 	private Json json = null;
 	private int CRAWLER_DELETE_RETRY = 3;
 	private int SLEEP_DELETE_RETRY_MS = 2000;
+	private String username = null;
+	private List<String> errorMessages = null;
+	private List<String> errorDetails = null;
+	private Logger sysLogger = null;
 
 	public Crawler(){
 		caxHome = System.getenv("SOLR_HOME");
@@ -60,6 +65,11 @@ public class Crawler {
 		sc = new SystemControl();
 		json = new Json();
 		fm = new FileManager();
+		
+		errorMessages = new ArrayList<String>();
+		errorDetails = new ArrayList<String>();
+		
+		sysLogger = Logger.getLogger(Crawler.class);
 	}
 	
 	@GET
@@ -73,7 +83,7 @@ public class Crawler {
 				@QueryParam("sessionId") String session
 			) {
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		Security secure = new Security();
 		try {
@@ -89,29 +99,33 @@ public class Crawler {
 			else {
 				try{
 					if (!collectionId.toLowerCase().contains("colgroup")){
-						String username = secure.getUser(session);
-						String groups = secure.getGroupDerby(username);
-						collectionId = groups+"-"+collectionId;
+						username = secure.getUser(session);
+						String group = secure.getGroupDerby(username);
+						collectionId = group + "-" + collectionId;
 					}
 				}
 				catch(Exception e){
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
 				}
 			}
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
-		}
-		
-		if(error.size() > 0){
-			apiResponse.put("items", error);
-			return new Viewable("/exception/error", apiResponse);
 		}
 		
 		if(method.equals("getList")){
@@ -141,18 +155,43 @@ public class Crawler {
 		}else if(method.equals("getTemplate")){
 			return getTemplate(template,type);
 		}else{
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			
 			errorProperty.put("code", "405");
 			errorProperty.put("message", "Method Not Allowed");
 			errorProperty.put("detail", 
 					"The REST service does not support the operation implied by the HTTP "
 					+ "method for the resource that is addressed by the URI that is "
+					+ "passed in");*/
+			
+			errorMessages.add("Method Not Allowed");
+			errorDetails.add("The REST service does not support the operation implied by the HTTP "
+					+ "method for the resource that is addressed by the URI that is "
 					+ "passed in");
 			
-			apiResponse.put("items", errorProperty);
-			return new Viewable("/exception/error", apiResponse);
+			writeLog("Method not allowed: " + method, "error");
 		}
+		
+		Map<String,Object> error = new HashMap<String,Object>();
+		
+		String messages = "";
+		for(String message : errorMessages){
+			messages += message + "\n";
+		}
+		
+		error.put("message", messages);
+		
+		String details = "";
+		for(String detail : errorDetails){
+			details += detail + "\n";
+		}
+		
+		error.put("detail", details);
+		error.put("value", "1");
+		
+		apiResponse.put("items", error);
+		
+		return new Viewable("/exception/error", apiResponse);
 	}
 	
 	@POST
@@ -164,7 +203,7 @@ public class Crawler {
 			@QueryParam("crawlerId") String crawlerId) {
 		
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		Security secure = new Security();
 		JSONObject jsonobj = null;
 		String collectionIdTemp = "";
@@ -187,10 +226,16 @@ public class Crawler {
 						collectionId = collectionIdTemp;
 					}
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
-					errorProperty.put("detail", sc.getStackTrace(e));
+					errorProperty.put("detail", sc.getStackTrace(e));*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
 					
 //					error.add(errorProperty);
 //					System.out.println("no body collection ID found");
@@ -204,12 +249,16 @@ public class Crawler {
 						collectionId = groups+"-"+collectionId;
 					}
 				}catch(Exception e){
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
 					
 					e.printStackTrace();
 				}
@@ -225,30 +274,33 @@ public class Crawler {
 						
 					}
 				}catch(Exception e){
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
-					errorProperty.put("detail", sc.getStackTrace(e));
+					errorProperty.put("detail", sc.getStackTrace(e));*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
 					
 //					System.out.println("no body collection ID found");
 					
-//					e.printStackTrace();
+					e.printStackTrace();
 				}
 			}
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
-		}
-		
-		if(error.size() > 0){
-			apiResponse.put("items", error);
-			return new Viewable("/exception/error", apiResponse);
 		}
 		
 		if(method.equalsIgnoreCase("create")){
@@ -258,7 +310,7 @@ public class Crawler {
 		}else if(method.equalsIgnoreCase("createXmlConfig")){
 			return createXmlConfig(collectionId, crawlerId, body);
 		}else{
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			
 			errorProperty.put("code", "405");
 			errorProperty.put("message", "Method Not Allowed");
@@ -268,111 +320,182 @@ public class Crawler {
 					+ "passed in");
 			
 			apiResponse.put("items", errorProperty);
-			return new Viewable("/exception/error", apiResponse);
+			return new Viewable("/exception/error", apiResponse);*/
+			errorMessages.add("Method Not Allowed");
+			errorDetails.add("The REST service does not support the operation implied by the HTTP "
+					+ "method for the resource that is addressed by the URI that is "
+					+ "passed in");
+			
+			writeLog("Method not allowed: " + method, "error");
 		}
+		
+		Map<String,Object> error = new HashMap<String,Object>();
+		
+		String messages = "";
+		for(String message : errorMessages){
+			messages += message + "\n";
+		}
+		
+		error.put("message", messages);
+		
+		String details = "";
+		for(String detail : errorDetails){
+			details += detail + "\n";
+		}
+		
+		error.put("detail", details);
+		error.put("value", "1");
+		
+		apiResponse.put("items", error);
+		
+		return new Viewable("/exception/error", apiResponse);
 	}
 	
 	private Viewable getList(String collectionId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
 		List<Object> crawlerDefinition = new ArrayList<Object>();
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		InputStream inputPropFile = null;
 		
 		File colHome = new File(collectionHome);
 		
-		for(File colHomeFile : colHome.listFiles()){
-			if(colHomeFile.isDirectory()){
-				String[] colHomeFileParts = colHomeFile.getName().split("\\.");
-				if(colHomeFileParts.length > 1 && colHomeFileParts[0].equals(collectionId)){
-					File colDir = new File(colHomeFile.getAbsolutePath());
-
-					Map<String,Object> crawlerProperty = new HashMap<String,Object>();
-					List<Object> keyValuePair = new ArrayList<Object>();
-					
-					for(File colFile : colDir.listFiles()){
-						if(colFile.isFile() && colFile.getName().startsWith("config")){
-							try {
-								inputPropFile = new FileInputStream(
-										colFile.getAbsolutePath());
-						 
-								Properties prop = new Properties();
-								prop.load(inputPropFile);
-								
-								inputPropFile.close();
-						 
-								@SuppressWarnings("rawtypes")
-								Enumeration em = prop.keys();
-								
-								while(em.hasMoreElements()){
-									String key = (String) em.nextElement();
-									String value = (String) prop.get(key);
-									Map<String,Object> keyValue = new HashMap<String,Object>();
-									keyValue.put("key", key);
-									keyValue.put("value", value);
+		try{
+			for(File colHomeFile : colHome.listFiles()){
+				if(colHomeFile.isDirectory()){
+					String[] colHomeFileParts = colHomeFile.getName().split("\\.");
+					if(colHomeFileParts.length > 1 && colHomeFileParts[0].equals(collectionId)){
+						File colDir = new File(colHomeFile.getAbsolutePath());
+	
+						Map<String,Object> crawlerProperty = new HashMap<String,Object>();
+						List<Object> keyValuePair = new ArrayList<Object>();
+						
+						for(File colFile : colDir.listFiles()){
+							if(colFile.isFile() && colFile.getName().startsWith("config")){
+								try {
+									inputPropFile = new FileInputStream(
+											colFile.getAbsolutePath());
+							 
+									Properties prop = new Properties();
+									prop.load(inputPropFile);
 									
-									keyValuePair.add(keyValue);
-								}
-								
-								crawlerProperty.put("keyValuePair", keyValuePair);
-							} catch (Exception e) {
-								Map<String,Object> errorProperty = new HashMap<String,Object>();
-								errorProperty.put("code", "500");
-								errorProperty.put("message", e.toString());
-								errorProperty.put("detail", sc.getStackTrace(e));
-								
-								error.add(errorProperty);
-								
-								e.printStackTrace();
-							} finally {
-								if (inputPropFile != null) {
-									try {
-										inputPropFile.close();
-									} catch (Exception e) {
-										Map<String,Object> errorProperty = new HashMap<String,Object>();
-										errorProperty.put("code", "500");
-										errorProperty.put("message", e.toString());
-										errorProperty.put("detail", sc.getStackTrace(e));
+									inputPropFile.close();
+							 
+									@SuppressWarnings("rawtypes")
+									Enumeration em = prop.keys();
+									
+									while(em.hasMoreElements()){
+										String key = (String) em.nextElement();
+										String value = (String) prop.get(key);
+										Map<String,Object> keyValue = new HashMap<String,Object>();
+										keyValue.put("key", key);
+										keyValue.put("value", value);
 										
-										error.add(errorProperty);
-										
-										e.printStackTrace();
+										keyValuePair.add(keyValue);
+									}
+									
+									crawlerProperty.put("keyValuePair", keyValuePair);
+								} catch (Exception e) {
+									/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+									errorProperty.put("code", "500");
+									errorProperty.put("message", e.toString());
+									errorProperty.put("detail", sc.getStackTrace(e));
+									
+									error.add(errorProperty);*/
+									errorMessages.add(e.toString());
+									errorDetails.add(sc.getStackTrace(e));
+									
+									writeLog(e, "error");
+									
+									e.printStackTrace();
+								} finally {
+									if (inputPropFile != null) {
+										try {
+											inputPropFile.close();
+										} catch (Exception e) {
+											/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+											errorProperty.put("code", "500");
+											errorProperty.put("message", e.toString());
+											errorProperty.put("detail", sc.getStackTrace(e));
+											
+											error.add(errorProperty);*/
+											errorMessages.add(e.toString());
+											errorDetails.add(sc.getStackTrace(e));
+											
+											writeLog(e, "error");
+											
+											e.printStackTrace();
+										}
 									}
 								}
+							}else if(colFile.isFile() && colFile.getName().endsWith("config.xml")){
+								Map<String,Object> keyValue = new HashMap<String,Object>();
+								
+								keyValue.put("key", "xpath");
+								
+								try {
+									keyValue.put("value", FileUtils.readFileToString(colFile));
+								} catch (Exception e) {
+									errorMessages.add(e.toString());
+									errorDetails.add(sc.getStackTrace(e));
+									
+									writeLog(e, "error");
+									
+									e.printStackTrace();
+								}
+								
+								keyValuePair.add(keyValue);
+								
+								crawlerProperty.put("keyValuePair", keyValuePair);
 							}
-						}else if(colFile.isFile() && colFile.getName().endsWith("config.xml")){
-							Map<String,Object> keyValue = new HashMap<String,Object>();
-							
-							keyValue.put("key", "xpath");
-							
-							try {
-								keyValue.put("value", FileUtils.readFileToString(colFile));
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
-							
-							keyValuePair.add(keyValue);
-							
-							crawlerProperty.put("keyValuePair", keyValuePair);
 						}
+						
+						crawlerDefinition.add(crawlerProperty);
 					}
-					
-					crawlerDefinition.add(crawlerProperty);
 				}
 			}
+		} catch (Exception e) {
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
+			e.printStackTrace();
 		}
 		
-		if(crawlerDefinition.size() > 0){
-			apiResponse.put("items", crawlerDefinition);
-			return new Viewable("/crawler/getList", apiResponse);
-		}else{
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler list was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
+		} else {
+			apiResponse.put("items", crawlerDefinition);
+			
+			writeLog("Crawler list retrieved successfully.", "info");
+			
+			return new Viewable("/crawler/getList", apiResponse);
 		}
 	}
 	
-	public boolean isAnyCrawlerRun(String collectionId){
+	public boolean isAnyCrawlerRun (String collectionId) throws Exception{
 		InputStream inputPropFile = null;
 		
 		File colHome = new File(collectionHome);
@@ -398,12 +521,24 @@ public class Crawler {
 						
 						inputPropFile.close();
 					} catch (Exception e) {
+						errorMessages.add(e.toString());
+						errorDetails.add(sc.getStackTrace(e));
+						
+						
+						writeLog(e, "error");
+						
 						e.printStackTrace();
 					} finally {
 						if (inputPropFile != null) {
 							try {
 								inputPropFile.close();
 							} catch (Exception e) {
+								errorMessages.add(e.toString());
+								errorDetails.add(sc.getStackTrace(e));
+								
+								
+								writeLog(e, "error");
+								
 								e.printStackTrace();
 							}
 						}
@@ -418,7 +553,7 @@ public class Crawler {
 	private Viewable getState(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 		
@@ -438,12 +573,16 @@ public class Crawler {
 			
 			in.close();
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -463,12 +602,16 @@ public class Crawler {
 				stateString = "running";
 			}
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -477,16 +620,38 @@ public class Crawler {
 		property.put("state", stateString);
 		property.put("pid", pidString);
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler ID: " + crawlerId + " status was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
-			apiResponse.put("items", property);
+			apiResponse.put("items", property);			
+			
+			writeLog("Crawler ID: " + crawlerId + " status retrieved successfully.", "info");
+
 			return new Viewable("/crawler/getState", apiResponse);
 		}
 	}
 	
-	private boolean getStateOff(String collectionId, String crawlerId){
+	private boolean getStateOff(String collectionId, String crawlerId) throws Exception{
 		boolean run = false;
 		String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 		
@@ -504,6 +669,11 @@ public class Crawler {
 			
 			in.close();
 		} catch (Exception e) {
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
 			e.printStackTrace();
 		}
 		
@@ -515,6 +685,11 @@ public class Crawler {
 				run = true;
 			}
 		} catch (Exception e) {
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
 			e.printStackTrace();
 		}
 		
@@ -525,10 +700,11 @@ public class Crawler {
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
 		Map<String, String> jsonElements = null;
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		Security secure = new Security();
-		String username = "";
 		boolean isOnList = false;
+		String crawlerId = null;
+		
 		try {
 			username = secure.getUser(sessionID);
 			secure.updateLimitCrawler(collectionId, username);
@@ -536,12 +712,16 @@ public class Crawler {
 				try {
 					jsonElements = json.parse(body);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
 					
 					e.printStackTrace();
 				}
@@ -575,7 +755,8 @@ public class Crawler {
 				}
 				
 				String randomName = Integer.toString(randInt(10000, 99999));
-				String collectionDir = collectionHome + "\\" + collectionId + ".WEB_" + randomName;
+				crawlerId = "WEB_" + randomName;
+				String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 				String jarResourceDir = caxHome + "\\example\\resources\\jar\\crawler";
 				String configResourceDir = caxHome + "\\example\\resources\\config_template\\crawler";
 				
@@ -646,12 +827,16 @@ public class Crawler {
 								}
 							}
 						} catch (Exception e) {
-							Map<String,Object> errorProperty = new HashMap<String,Object>();
+							/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 							errorProperty.put("code", "500");
 							errorProperty.put("message", e.toString());
 							errorProperty.put("detail", sc.getStackTrace(e));
 							
-							error.add(errorProperty);
+							error.add(errorProperty);*/
+							errorMessages.add(e.toString());
+							errorDetails.add(sc.getStackTrace(e));
+							
+							writeLog(e, "error");
 							
 							e.printStackTrace();
 						}
@@ -671,12 +856,16 @@ public class Crawler {
 						
 						out.close();
 					} catch (Exception e) {
-						Map<String,Object> errorProperty = new HashMap<String,Object>();
+						/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 						errorProperty.put("code", "500");
 						errorProperty.put("message", e.toString());
 						errorProperty.put("detail", sc.getStackTrace(e));
 						
-						error.add(errorProperty);
+						error.add(errorProperty);*/
+						errorMessages.add(e.toString());
+						errorDetails.add(sc.getStackTrace(e));
+						
+						writeLog(e, "error");
 						
 						e.printStackTrace();
 					}
@@ -740,12 +929,16 @@ public class Crawler {
 						
 						out.close();
 					} catch (Exception e) {
-						Map<String,Object> errorProperty = new HashMap<String,Object>();
+						/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 						errorProperty.put("code", "500");
 						errorProperty.put("message", e.toString());
 						errorProperty.put("detail", sc.getStackTrace(e));
 						
-						error.add(errorProperty);
+						error.add(errorProperty);*/
+						errorMessages.add(e.toString());
+						errorDetails.add(sc.getStackTrace(e));
+						
+						writeLog(e, "error");
 						
 						e.printStackTrace();
 					} 
@@ -755,59 +948,119 @@ public class Crawler {
 //						System.out.println("crawler : "+collectionId + ".WEB_" + randomName+" created!");
 					}
 					catch(Exception e){
-						Map<String,Object> errorProperty = new HashMap<String,Object>();
+						/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 						errorProperty.put("code", "500");
 						errorProperty.put("message", e.toString());
 						errorProperty.put("detail", sc.getStackTrace(e));
 						
 						error.add(errorProperty);
+						*/
+						errorMessages.add(e.toString());
+						errorDetails.add(sc.getStackTrace(e));
+						
+						writeLog(e, "error");
 						
 						e.printStackTrace();
 					}
 				}else{
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", "Failed");
 					errorProperty.put("detail", "Internal Server Error");
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					String message = "Failed";
+					String detail = "Internal Server Error";
+					
+					errorMessages.add(message);
+					errorDetails.add(detail);
+					
+					writeLog(message + detail, "error");
 				}
 				
-				if(error.size() > 0){
+				/*if(errorMessages.size() > 0){
+					Map<String,Object> error = new HashMap<String,Object>();
+					String messages = "";
+					for(String message : errorMessages){
+						messages += message + "\n";
+					}
+					
+					error.put("message", messages);
+					
+					String details = "";
+					for(String detail : errorDetails){
+						details += detail + "\n";
+					}
+					
+					error.put("detail", details);
+					error.put("value", "1");
+					
 					apiResponse.put("items", error);
+					
+					writeLog("Crawler ID: " + crawlerId + " was failed to be created.", "error");
+					
 					return new Viewable("/exception/error", apiResponse);
-				}else{
+				}else{*/if(errorMessages.size() == 0){
 					secure.insertLimitCrawler(username, collectionId);
-					System.out.println("crawler : "+collectionId + ".WEB_" + randomName+" created!");
-					Map<String,Object> property = new HashMap<String,Object>();
+					System.out.println("crawler : " + collectionId + "." + crawlerId + " created!");
+					/*Map<String,Object> property = new HashMap<String,Object>();
 					
 					property.put("message", "successful");
 					property.put("value", "0");
 					
 					apiResponse.put("items", property);
-					return new Viewable("/general/ack", apiResponse);
+					return new Viewable("/general/ack", apiResponse);*/
 				}
-			}
-			else {
-				Map<String,Object> property = new HashMap<String,Object>();
+			} else {
+				/*Map<String,Object> property = new HashMap<String,Object>();
 				
 				property.put("message", "crawler reach max");
 				property.put("value", "2");
 				
 				apiResponse.put("items", property);
-				return new Viewable("/general/ack", apiResponse);
+				return new Viewable("/general/ack", apiResponse);*/
+				String message = "Unable to create new crawler.";
+				String detail = "Crawler limit was reached.";
+				
+				errorMessages.add(message);
+				errorDetails.add(detail);
+				
+				writeLog(message + detail, "error");
 			}
 		} catch (Exception e1) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", "Failed");
 			errorProperty.put("detail", "Internal Server Error");
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e1.toString());
+			errorDetails.add(sc.getStackTrace(e1));
+			
+			writeLog(e1, "error");
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler ID: " + crawlerId + " was failed to be created.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -816,6 +1069,9 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Crawler ID: " + crawlerId + " was created successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -823,50 +1079,88 @@ public class Crawler {
 	private Viewable createXmlConfig(String collectionId, String crawlerId, String body){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		File collectionDir = new File(collectionHome + "\\" + collectionId + "." + crawlerId);	
+		
+		try{
+			JSONObject json = new JSONObject(body);
+			String xml = XML.toString(json);
+			String typeConfig = "";
 			
-		JSONObject json = new JSONObject(body);
-		String xml = XML.toString(json);
-		String typeConfig = "";
-		
-//		System.out.println(body);
-		
-    	xml = xml.replaceAll("<properties>", "<properties>\r\n");
-    	xml = xml.replaceAll("</properties>", "\r\n</properties>");
-    	xml = xml.replaceAll("<collectionId>(.*?)</collectionId>", "");  
-    	
-//    	System.out.println("xml : "+xml);
- 
-    	ArrayList<String> listFile = new ArrayList<String>();
-    	listFile = fm.listFile(collectionHome + "\\" + collectionId + "." + crawlerId);
-    	
-    	for(String file : listFile){
-    		if(file.contains("news")){
-    			typeConfig = "\\newsconfig.xml";
-    			break;
-    		}
-    		else if(file.contains("forum")){
-    			typeConfig = "\\forumconfig.xml";
-    			break;
-    		}
-    	}
-		
-		try {
-			fm.fileWriter(collectionDir + typeConfig, xml, false);
+	//		System.out.println(body);
+			
+	    	xml = xml.replaceAll("<properties>", "<properties>\r\n");
+	    	xml = xml.replaceAll("</properties>", "\r\n</properties>");
+	    	xml = xml.replaceAll("<collectionId>(.*?)</collectionId>", "");  
+	    	
+	//    	System.out.println("xml : "+xml);
+	 
+	    	ArrayList<String> listFile = new ArrayList<String>();
+	    	listFile = fm.listFile(collectionHome + "\\" + collectionId + "." + crawlerId);
+	    	
+	    	for(String file : listFile){
+	    		if(file.contains("news")){
+	    			typeConfig = "\\newsconfig.xml";
+	    			break;
+	    		}
+	    		else if(file.contains("forum")){
+	    			typeConfig = "\\forumconfig.xml";
+	    			break;
+	    		}
+	    	}
+			
+			try {
+				fm.fileWriter(collectionDir + typeConfig, xml, false);
+			} catch (Exception e) {
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+				errorProperty.put("code", "500");
+				errorProperty.put("message", e.toString());
+				errorProperty.put("detail", sc.getStackTrace(e));
+				
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
+				
+				writeLog(e, "error");
+				
+				e.printStackTrace();
+			}
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("XML for crawler ID: " + crawlerId + " was failed to be created.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -875,6 +1169,9 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("XML for crawler ID: " + crawlerId + " was created successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -882,7 +1179,7 @@ public class Crawler {
 	private Viewable delete(String collectionId, String crawlerId, String sessionID){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		File collectionDir = new File(collectionHome + "\\" + collectionId + "." + crawlerId);	
 			
 		try {
@@ -905,12 +1202,16 @@ public class Crawler {
 				    	fm.deleteFile(file.getAbsolutePath(), true);
 //						FileDeleteStrategy.FORCE.delete(file);
 					} catch (Exception e1) {
-						Map<String,Object> errorProperty = new HashMap<String,Object>();
+						/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 						errorProperty.put("code", "500");
 						errorProperty.put("message", e1.toString());
 						errorProperty.put("detail", sc.getStackTrace(e1));
 						
-						error.add(errorProperty);
+						error.add(errorProperty);*/
+						errorMessages.add(e1.toString());
+						errorDetails.add(sc.getStackTrace(e1));
+						
+						writeLog(e1, "error");
 						
 						e1.printStackTrace();
 					}
@@ -921,6 +1222,11 @@ public class Crawler {
 				try {
 					Thread.sleep(SLEEP_DELETE_RETRY_MS);
 				} catch (InterruptedException e1) {
+					errorMessages.add(e1.toString());
+					errorDetails.add(sc.getStackTrace(e1));
+					
+					writeLog(e1, "error");
+					
 					e1.printStackTrace();
 				}
 			}
@@ -930,22 +1236,30 @@ public class Crawler {
 				FileUtils.deleteDirectory(collectionDir);
 			} 
 			catch (Exception e1) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e1.toString());
 				errorProperty.put("detail", sc.getStackTrace(e1));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e1.toString());
+				errorDetails.add(sc.getStackTrace(e1));
+				
+				writeLog(e1, "error");
 				
 				e1.printStackTrace();
 			}
 			
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -957,18 +1271,41 @@ public class Crawler {
 			System.out.println("crawler : "+collectionDir.getName()+" deleted!");
 		}
 		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler ID: " + crawlerId + " was failed to be deleted.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -977,6 +1314,9 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Crawler ID: " + crawlerId + " was created successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -984,7 +1324,7 @@ public class Crawler {
 	private Viewable edit(String body, String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 		
 		String type = "news";
@@ -994,12 +1334,16 @@ public class Crawler {
 			jsonElements = json.parse(body);
 			System.out.println(body);
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -1009,12 +1353,15 @@ public class Crawler {
 		
 		for(File file : files){
 			if(file.getName().contains("config") && file.getName().endsWith("cfg")){
+				FileInputStream in = null;
+				FileOutputStream out = null;
+				
 				try{
-					FileInputStream in = new FileInputStream(file.getAbsolutePath());
+					in = new FileInputStream(file.getAbsolutePath());
 					Properties props = new Properties();
 					props.load(in);
 		
-					FileOutputStream out = new FileOutputStream(file.getAbsolutePath());
+					out = new FileOutputStream(file.getAbsolutePath());
 					
 					for(String key : jsonElements.keySet()){
 						if(props.containsKey(key)){
@@ -1023,17 +1370,44 @@ public class Crawler {
 					}
 					
 					props.store(out, null);
-					in.close();
-					out.close();
 				}catch(Exception e){
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
 					
 					e.printStackTrace();
+				}finally{
+					if(in != null){
+						try {
+							in.close();
+						} catch (Exception e) {
+							errorMessages.add(e.toString());
+							errorDetails.add(sc.getStackTrace(e));
+							
+							writeLog(e, "error");
+							
+							e.printStackTrace();
+						}
+					}
+					if(out != null){
+						try {
+							out.close();
+						} catch (Exception e) {
+							errorMessages.add(e.toString());
+							errorDetails.add(sc.getStackTrace(e));
+							
+							writeLog(e, "error");
+							
+							e.printStackTrace();
+						}
+					}
 				}
 			}else if(file.getName().contains("config") && file.getName().endsWith("xml")){
 				if(file.getName().contains("news")){
@@ -1049,17 +1423,27 @@ public class Crawler {
 				try {
 					DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 					doc = docBuilder.parse(file.getAbsolutePath());
-				} catch (SAXException | IOException e) {
+				} catch (Exception e) {
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
-				} catch (ParserConfigurationException e) {
-					e.printStackTrace();
-				}
+				} 
 				
 				for(String key : jsonElements.keySet()){
 					Node nodeKey = null;
 					try{
 						nodeKey = doc.getElementsByTagName(key).item(0);
-					}catch(Exception e){}
+					}catch(Exception e){
+						errorMessages.add(e.toString());
+						errorDetails.add(sc.getStackTrace(e));
+						
+						writeLog(e, "error");
+						
+						e.printStackTrace();
+					}
 					
 					if(nodeKey != null){
 						nodeKey.setTextContent(jsonElements.get(key));
@@ -1073,7 +1457,12 @@ public class Crawler {
 					transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
 					transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 					transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-				} catch (TransformerConfigurationException e) {
+				} catch (Exception e) {
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 				
@@ -1082,7 +1471,12 @@ public class Crawler {
 				
 				try {
 					transformer.transform(source, result);
-				} catch (TransformerException e) {
+				} catch (Exception e) {
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
 					e.printStackTrace();
 				}
 			}
@@ -1111,13 +1505,36 @@ public class Crawler {
 				FileUtils.copyDirectory(new File(templateDir), new File(collectionDir+"\\"+domainUrl));
 			}
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
 			e.printStackTrace();
 		}
 	
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler ID: " + crawlerId + " was failed to be edited.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1126,15 +1543,17 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Crawler ID: " + crawlerId + " was edited successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
-			
 	}
 	
 	private Viewable fullRecrawl(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		String pidString = "";
 		
@@ -1144,22 +1563,39 @@ public class Crawler {
 		System.out.println("full recrawling: "+collectionDir+"");
 		
 		String type = "";
+		FileInputStream in = null;
+		
 		try {
-			FileInputStream in = new FileInputStream(collectionDir + "\\configproperties.cfg");
+			in = new FileInputStream(collectionDir + "\\configproperties.cfg");
 			Properties props = new Properties();
 			props.load(in);
 			type = props.getProperty("type");
-			in.close();
-		}
-		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+		} catch(Exception e){
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
+		} finally{
+			if(in != null){
+				try {
+					in.close();
+				} catch (IOException e) {
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		if(type.equals("general")){
@@ -1184,16 +1620,17 @@ public class Crawler {
 				
 		try{
 			if(new File(collectionDir + "\\start.cfg").exists()){
+				FileInputStream in2 = null;
+				
 				try {
-					FileInputStream in = new FileInputStream(collectionDir + "\\start.cfg");
+					in2 = new FileInputStream(collectionDir + "\\start.cfg");
 					Properties prop = new Properties();	
-					prop.load(in);
+					prop.load(in2);
 					
 					pidString = prop.getProperty("pid");
 					String[] pidStrings = pidString.split("@");
 					pidString = pidStrings[0];
 					
-					in.close();
 					try{
 						new SystemControl().runExec("taskkill /PID "+pidString+" /F");
 					}
@@ -1201,23 +1638,35 @@ public class Crawler {
 						System.out.println("Crawler already stop, continue..");
 					}
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
 					
 					e.printStackTrace();
+				} finally{
+					if(in2 != null){
+						in2.close();
+					}
 				}
 			}	
 		}catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
@@ -1274,18 +1723,21 @@ public class Crawler {
 			}
 
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty); 
+			error.add(errorProperty); */
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
 		try{
-			
 			if(new File(collectionDir + "\\"+type).exists()){
 				
 				System.out.println("re-crawling..");
@@ -1294,26 +1746,55 @@ public class Crawler {
 				fm.fileWriter(collectionDir+"\\startcrawl.bat", goRun, false);
 				Runtime.getRuntime().exec("cmd /c start "+collectionDir+"\\startcrawl.bat");
 			}else{
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", "Failed");
 				errorProperty.put("detail", "Internal Server Error");
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				String message = "Failed";
+				String detail = "Internal Server Error";
+				errorMessages.add(message);
+				errorDetails.add(detail);
+				
+				writeLog(message + detail, "error");
 			}
 		}catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler ID: " + crawlerId + " was failed to be re-crawled.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1322,6 +1803,9 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Crawler ID: " + crawlerId + " was re-crawled successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -1329,7 +1813,7 @@ public class Crawler {
 	private Viewable getRecentlyCrawled(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		File collectionDir = new File(collectionHome + "\\" + collectionId + "." + crawlerId);	
 		
@@ -1351,12 +1835,16 @@ public class Crawler {
 						.replace(">", "&gt;")
 						.replace("\n", "|");
 			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e.toString());
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
+				
+				writeLog(e, "error");
 				
 				e.printStackTrace();
 			}
@@ -1370,22 +1858,48 @@ public class Crawler {
 						.replace(">", "&gt;")
 						.replace("\n", "|");
 			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e.toString());
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
+				
+				writeLog(e, "error");
 				
 				e.printStackTrace();
 			}
 		}
 
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Recently crawled list for crawler ID: " + crawlerId + " was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
-			apiResponse.put("items", out);
+			apiResponse.put("items", out);			
+			
+			writeLog("Recently crawled list for crawler ID: " + crawlerId + " was retrieved successfully.", "info");
+
 			return new Viewable("/crawler/getUrl", apiResponse);
 		}
 	}
@@ -1393,7 +1907,7 @@ public class Crawler {
 	private Viewable getAllCrawled(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		File collectionDir = new File(collectionHome + "\\" + collectionId + "." + crawlerId);	
 			
@@ -1415,12 +1929,16 @@ public class Crawler {
 						.replace(">", "&gt;")
 						.replace("\n", "|");
 			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e.toString());
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
+				
+				writeLog(e, "error");
 				
 				e.printStackTrace();
 			}
@@ -1434,22 +1952,48 @@ public class Crawler {
 						.replace(">", "&gt;")
 						.replace("\n", "|");
 			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e.toString());
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
+				
+				writeLog(e, "error");
 				
 				e.printStackTrace();
 			}
 		}
 
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawled list for crawler ID: " + crawlerId + " was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			apiResponse.put("items", out);
+			
+			writeLog("Crawled list for crawler ID: " + crawlerId + " was retrieved successfully.", "info");
+			
 			return new Viewable("/crawler/getUrl", apiResponse);
 		}
 	}
@@ -1457,7 +2001,7 @@ public class Crawler {
 	private Viewable start(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 
 		String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 		String type = "";
@@ -1485,23 +2029,38 @@ public class Crawler {
 //			// TODO Auto-generated catch block
 //			e3.printStackTrace();
 //		}
-		
+		FileInputStream in = null;
 		try {
-			FileInputStream in = new FileInputStream(collectionDir + "\\configproperties.cfg");
+			in = new FileInputStream(collectionDir + "\\configproperties.cfg");
 			Properties props = new Properties();
 			props.load(in);
 			type = props.getProperty("type");
-			in.close();
-		}
-		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+		} catch(Exception e){
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
+		} finally{
+			if(in != null){
+				try {
+					in.close();
+				} catch (IOException e) {
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		if(type.equals("general")){
@@ -1530,33 +2089,61 @@ public class Crawler {
 		}
 		
 		if(new File(collectionDir + "\\"+type).exists()){
-			
 			String goRun =  "java -jar \"" + collectionDir + "\\"+type+"\"\r\nexit";
 			try {
 				fm.fileWriter(collectionDir+"\\startcrawl.bat", goRun, false);
 				Runtime.getRuntime().exec("cmd /c start /min "+collectionDir+"\\startcrawl.bat");
 			} catch (Exception e) {
-				
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e.toString());
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
+				
+				writeLog(e, "error");
 				
 				e.printStackTrace();
 			}
 		}else{
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", "Failed");
 			errorProperty.put("detail", "Internal Server Error");
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			String message = "Failed";
+			String detail = "Internal Server Error";
+			
+			errorMessages.add(message);
+			errorDetails.add(detail);
+			
+			writeLog(message + detail, "error");
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler ID: " + crawlerId + " was failed to be started.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1565,6 +2152,9 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Crawler ID: " + crawlerId + " was started successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -1572,45 +2162,101 @@ public class Crawler {
 	private Viewable stop(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 		
 		if(new File(collectionDir + "\\start.cfg").exists()){
 			String pidString = "";
+			FileInputStream in = null;
+			FileOutputStream out = null;
+			
 			try {
-				FileInputStream in = new FileInputStream(collectionDir + "\\start.cfg");
+				in = new FileInputStream(collectionDir + "\\start.cfg");
 				Properties prop = new Properties();	
 				prop.load(in);
 				pidString = prop.getProperty("pid");
 				String[] pidStrings = pidString.split("@");
 				pidString = pidStrings[0];
-				in.close();
 				
-				FileOutputStream out = new FileOutputStream(collectionDir + "\\start.cfg");
+				out = new FileOutputStream(collectionDir + "\\start.cfg");
 				prop.setProperty("startcrawl", "stop");
 				prop.store(out, null);
-				out.close();
-				
 			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e.toString());
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
+				
+				writeLog(e, "error");
 				
 				e.printStackTrace();
+			} finally {
+				if(in != null){
+					try {
+						in.close();
+					} catch (IOException e) {
+						errorMessages.add(e.toString());
+						errorDetails.add(sc.getStackTrace(e));
+						
+						writeLog(e, "error");
+						
+						e.printStackTrace();
+					}
+				}
+				
+				if(out != null){
+					try {
+						out.close();
+					} catch (IOException e) {
+						errorMessages.add(e.toString());
+						errorDetails.add(sc.getStackTrace(e));
+						
+						writeLog(e, "error");
+						
+						e.printStackTrace();
+					}
+				}
 			}
 		}
 		else{
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", "Failed");
-			errorProperty.put("detail", "Internal Server Error");
+			errorProperty.put("detail", "Internal Server Error");*/
+			String message = "Failed";
+			String detail = "Internal Server Error";
+			
+			errorMessages.add(message);
+			errorDetails.add(detail);
+			
+			writeLog(message + detail, "error");
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Crawler ID: " + crawlerId + " was failed to be stopped.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1619,6 +2265,9 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Crawler ID: " + crawlerId + " was stopped successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -1665,7 +2314,7 @@ public class Crawler {
 	private Viewable getTemplate(String template, String type){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String templateDir = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\"+type;
 		String templateString = "not found";
 		
@@ -1674,21 +2323,53 @@ public class Crawler {
 				templateString = fm.readData(templateDir + "\\"+template+"\\default_config.xml");
 			}
 			else{
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", "Failed");
-				errorProperty.put("detail", "Internal Server Error");
+				errorProperty.put("detail", "Internal Server Error");*/
+				String message = "Failed";
+				String detail = "Internal Server Error";
+				
+				errorMessages.add(message);
+				errorDetails.add(detail);
+				
+				writeLog(message + detail, "error");
 			}
 		}
 		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", "Failed");
-			errorProperty.put("detail", "Internal Server Error");
+			errorProperty.put("detail", "Internal Server Error");*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
+			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Template for crawler type: " + type + " was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1697,6 +2378,9 @@ public class Crawler {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
+			
+			writeLog("Template for crawler type: " + type + " was retrieved successfully.", "info");
+			
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -1747,7 +2431,7 @@ public class Crawler {
 	private Viewable checkIfUrlIsOnList(String encodedUrl){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		String templateDirNews = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\news";
 		String templateDirForum = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\forum";
@@ -1774,17 +2458,41 @@ public class Crawler {
 			}
 			
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
+			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Checking for url: " + encodedUrl + " was failed.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1792,7 +2500,10 @@ public class Crawler {
 			property.put("message", isOnList);
 			property.put("value", "0");
 			
-			apiResponse.put("items", property);
+			apiResponse.put("items", property);			
+			
+			writeLog("Checking for url: " + encodedUrl + " was successfully.", "info");
+
 			return new Viewable("/general/ack", apiResponse);
 		}
 	}
@@ -1981,5 +2692,25 @@ public class Crawler {
 	    int randomNum = rand.nextInt((max - min) + 1) + min;
 
 	    return randomNum;
+	}
+	
+	private void writeLog(Object content, String type){
+		content = "USER:" + username + " " + content;
+		if(type.equals("debug")){
+			sysLogger.debug(content);
+			//userLogger.debug(content);
+		}else if(type.equals("info")){
+			sysLogger.info(content);
+			//userLogger.info(content);
+		}else if(type.equals("warn")){
+			sysLogger.warn(content);
+			//userLogger.warn(content);
+		}else if(type.equals("error")){
+			sysLogger.error(content);
+			//userLogger.error(content);
+		}else if(type.equals("fatal")){
+			sysLogger.fatal(content);
+			//userLogger.fatal(content);
+		}
 	}
 }

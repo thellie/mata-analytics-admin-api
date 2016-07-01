@@ -4,7 +4,6 @@ import mata.icalite.api.util.*;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +49,8 @@ public class Collection {
 	private String groupName = null;
 	private Logger sysLogger = null;
 	private String username = null;
+	private List<String> errorMessages = null;
+	private List<String> errorDetails = null;
 	
 	public Collection(){
 		caxHome = System.getenv("SOLR_HOME");
@@ -64,6 +65,9 @@ public class Collection {
 		sc = new SystemControl();
 		json = new Json();
 		
+		errorMessages = new ArrayList<String>();
+		errorDetails = new ArrayList<String>();
+		
 		sysLogger = Logger.getLogger(Collection.class);
 	}
 	
@@ -73,11 +77,10 @@ public class Collection {
 				@QueryParam("collectionId") String collectionId,
 				@QueryParam("sessionId") String session
 				) {
-		Map<String,Object> apiResponse = new HashMap<String,Object>();
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		Security secure = new Security();
-		collectionLists = new ArrayList<String>();
+		Map<String,Object> apiResponse = new HashMap<String,Object>();
 
 		try {
 			if(!new Security().derbyCheck(session)){
@@ -104,12 +107,14 @@ public class Collection {
 					}
 				}
 				catch(Exception e){
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -117,36 +122,37 @@ public class Collection {
 				}
 			}
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
+
+		collectionLists = new ArrayList<String>();
 		
 		try {
 			collectionLists = secure.checkPrivilage(session);
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
-		}
-		
-		if(error.size() > 0){
-			apiResponse.put("items", error);
-			return new Viewable("/exception/error", apiResponse);
 		}
 		
 		if(method.equals("delete")){
@@ -158,7 +164,7 @@ public class Collection {
 		}else if(method.equals("getStatusCollection")){
 			return getStatusCollection(collectionId);
 		}else{
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			
 			errorProperty.put("code", "405");
 			errorProperty.put("message", "Method Not Allowed");
@@ -167,12 +173,35 @@ public class Collection {
 					+ "method for the resource that is addressed by the URI that is "
 					+ "passed in");
 			
-			apiResponse.put("items", errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add("Method Not Allowed");
+			errorDetails.add("The REST service does not support the operation implied by the HTTP "
+					+ "method for the resource that is addressed by the URI that is "
+					+ "passed in");
 			
 			writeLog("Method not allowed: " + method, "error");
-			
-			return new Viewable("/exception/error", apiResponse);
 		}
+		
+		Map<String,Object> error = new HashMap<String,Object>();
+		
+		String messages = "";
+		for(String message : errorMessages){
+			messages += message + "\n";
+		}
+		
+		error.put("message", messages);
+		
+		String details = "";
+		for(String detail : errorDetails){
+			details += detail + "\n";
+		}
+		
+		error.put("detail", details);
+		error.put("value", "1");
+		
+		apiResponse.put("items", error);
+		
+		return new Viewable("/exception/error", apiResponse);
 	}
 	
 	@POST
@@ -181,10 +210,11 @@ public class Collection {
 			@QueryParam("sessionId") String session,
 			@QueryParam("collectionId") String collectionId,
 			String body) {
-		Map<String,Object> apiResponse = new HashMap<String,Object>();
-		List<Object> error = new ArrayList<Object>();	
+		//List<Object> error = new ArrayList<Object>();	
 		
 		Security secure = new Security();
+		Map<String,Object> apiResponse = new HashMap<String,Object>();
+		
 		JSONObject jsonobj = null;
 		
 		try {
@@ -199,18 +229,19 @@ public class Collection {
 				writeLog("Session expired. token: " + session, "info");
 				
 				return new Viewable("/general/ack", apiResponse);
-			}
-			else {
+			} else {
 				try {
 					jsonobj = new JSONObject(body);
 					collectionId = jsonobj.getString("collectionId");
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -228,12 +259,14 @@ public class Collection {
 					}
 				}
 				catch(Exception e){
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -244,14 +277,15 @@ public class Collection {
 					jsonobj.remove("collectionId");
 					jsonobj.put("collectionId", collectionId);
 					body = jsonobj.toString();
-				}
-				catch(Exception e){
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+				} catch(Exception e){
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -259,21 +293,18 @@ public class Collection {
 				}
 			}
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
-		}
-		
-		if(error.size() > 0){
-			apiResponse.put("items", error);
-			return new Viewable("/exception/error", apiResponse);
 		}
 				
 		if(method.equalsIgnoreCase("create")){
@@ -283,32 +314,51 @@ public class Collection {
 		}else if(method.equalsIgnoreCase("edit")){
 			return edit(body);
 		}else{
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			
 			errorProperty.put("code", "405");
 			errorProperty.put("message", "Method Not Allowed");
 			errorProperty.put("detail", 
 					"The REST service does not support the operation implied by the HTTP "
 					+ "method for the resource that is addressed by the URI that is "
+					+ "passed in");*/
+			errorMessages.add("Method Not Allowed");
+			errorDetails.add("The REST service does not support the operation implied by the HTTP "
+					+ "method for the resource that is addressed by the URI that is "
 					+ "passed in");
 			
-			apiResponse.put("items", errorProperty);
+			//apiResponse.put("items", errorProperty);
 			
 			writeLog("Method not allowed: " + method, "error");
-			
-			return new Viewable("/exception/error", apiResponse);
 		}
+		
+		Map<String,Object> error = new HashMap<String,Object>();
+		
+		String messages = "";
+		for(String message : errorMessages){
+			messages += message + "\n";
+		}
+		
+		error.put("message", messages);
+		
+		String details = "";
+		for(String detail : errorDetails){
+			details += detail + "\n";
+		}
+		
+		error.put("detail", details);
+		error.put("value", "1");
+		
+		apiResponse.put("items", error);
+		
+		return new Viewable("/exception/error", apiResponse);
 	}
 	
 	private Viewable createV2(String body,String session){
-		Map<String,Object> apiResponse = new HashMap<String,Object>();
-		
-		List<Object> error = new ArrayList<Object>();
-		Map<String, String> jsonElements = null;	
+		//List<Object> error = new ArrayList<Object>();
 		Security secure = new Security();
+		Map<String, String> jsonElements = null;
 		
-		String configResourceDirV2 = caxHome + 
-				"\\example\\resources\\config_template\\collectionV2\\";
 		String collectionId = null;
 		
 		try{
@@ -317,12 +367,14 @@ public class Collection {
 				try {
 					jsonElements = json.parse(body);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -338,16 +390,18 @@ public class Collection {
 		        File collectionDirFile = new File(collectionDir);
 		        
 		        if(collectionDirFile.isDirectory()){
-		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
-					errorProperty.put("code", "500");
+		        	/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");*/
 					
 					String message = "Collection ID: " + collectionId + " is already exist.";
 					String detail = "Choose different collection ID.";
 					
-					errorProperty.put("message", message);
+					/*errorProperty.put("message", message);
 					errorProperty.put("detail", detail);
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(message);
+					errorDetails.add(detail);
 					
 					writeLog(message + detail, "error");
 					
@@ -365,15 +419,20 @@ public class Collection {
 		        }
 		       
 		        try {
+		    		String configResourceDirV2 = caxHome + 
+		    				"\\example\\resources\\config_template\\collectionV2\\";
+		    		
 		        	FileUtils.copyDirectory(new File(configResourceDirV2), 
 		        			collectionDirFile);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -396,12 +455,14 @@ public class Collection {
 					new FileManager().fileWriter(collectionDir+"\\status.collection", 
 							"status=unloaded", false);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -428,30 +489,37 @@ public class Collection {
 					new FileManager().fileWriter(collectionDir+"\\status.collection", 
 							"status=idle", false);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
 					e.printStackTrace();
 				}
 				
-				if(error.size() > 0){
+				/*if(!errorMessages.isEmpty()){
+					Map<String,Object> error = new HashMap<String,Object>();
+					error.put("message", errorMessages);
+					error.put("detail", errorDetails);
+					error.put("value", "1");
+					
 					apiResponse.put("items", error);
 					return new Viewable("/exception/error", apiResponse);
-				}else{
-					System.out.println("User : "+username+" creating collection : " + 
-							collectionId+"!");
+				}else{*/if(errorMessages.size() == 0){
+					System.out.println("User : " + username + " creating collection : " + 
+							collectionId + "!");
 					secure.addPrivilage(session, collectionId);
 					secure.addAdminPrivilage(collectionId);
 					secure.insertLimitCollection(username);
 					secure.createLimitCrawler(collectionId, username);
 					
-					Map<String,Object> property = new HashMap<String,Object>();
+					/*Map<String,Object> property = new HashMap<String,Object>();
 					
 					property.put("message", "successful");
 					property.put("value", "0");
@@ -460,40 +528,66 @@ public class Collection {
 					
 					writeLog("Collection ID: " + collectionId + " was created successfully.", "info");
 					
-					return new Viewable("/general/ack", apiResponse);
+					return new Viewable("/general/ack", apiResponse);*/
 				}
-			}
-			else{
-				Map<String,Object> property = new HashMap<String,Object>();
+			} else{
+				/*Map<String,Object> property = new HashMap<String,Object>();
 				
 				String message = "Collection limit was reached."
 						+ "Unable create new collection";
 				
 				property.put("message", message);
-				property.put("value", "2");
+				property.put("value", "1");
 				
-				apiResponse.put("items", property);
+				apiResponse.put("items", property);*/
+				String message = "Unable to create new collection.";
+				String detail = "Collection limit was reached.";
 				
-				writeLog(message, "info");
+				errorMessages.add(message);
+				errorDetails.add(detail);
 				
-				return new Viewable("/general/ack", apiResponse);
+				writeLog(message + detail, "error");
+				
+				//return new Viewable("/general/ack", apiResponse);
 			}
-		}
-		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+		} catch(Exception e){
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
+
+		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Collection ID: " + collectionId + " was failed to be created.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -510,11 +604,9 @@ public class Collection {
 	}
 	
 	private Viewable create(String body,String session){
-		Map<String,Object> apiResponse = new HashMap<String,Object>();
-		
-		List<Object> error = new ArrayList<Object>();
-		Map<String, String> jsonElements = null;	
+		//List<Object> error = new ArrayList<Object>();
 		Security secure = new Security();
+		Map<String, String> jsonElements = null;
 		
 		String collectionId = null;
 		
@@ -524,12 +616,15 @@ public class Collection {
 				try {
 					jsonElements = json.parse(body);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -555,18 +650,23 @@ public class Collection {
 		        FileManager fman = new FileManager();
 		        
 		        if(collectionDirFile.isDirectory()){
-		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
+		        	/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					
 					String message = "Collection ID: " + collectionId + " already exist.";
 					String detail = "Choose different collection ID.";
 					
 					errorProperty.put("message", message);
-					errorProperty.put("detail", detail);
+					errorProperty.put("detail", detail);*/
+		        	String message = "Collection ID: " + collectionId + " already exist.";
+					String detail = "Choose different collection ID.";
+		        	
+		        	errorMessages.add(message);
+					errorDetails.add(detail);
 					
 					writeLog(message + detail, "error");
 					
-					error.add(errorProperty);
+					//error.add(errorProperty);
 		        }else{
 		        	collectionDirFile.mkdirs();
 		        	configCollectionDirFile.mkdirs();
@@ -587,12 +687,14 @@ public class Collection {
 		        try {
 		        	FileUtils.copyDirectory(new File(configResourceDir), configCollectionDirFile);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -603,12 +705,14 @@ public class Collection {
 				try {
 					new FileManager().fileWriter(collectionDir+"\\status.collection", "status=idle", false);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
@@ -644,29 +748,39 @@ public class Collection {
 					Thread.sleep(3000);
 					CoreAdminRequest.createCore(collectionId, collectionId, server);
 				} catch (Exception e) {
-					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 					errorProperty.put("code", "500");
 					errorProperty.put("message", e.toString());
 					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					error.add(errorProperty);
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
 					
 					writeLog(e, "error");
 					
 					e.printStackTrace();
 				}
 				
-				if(error.size() > 0){
+				/*if(errorMessages.size() > 0){
+					Map<String,Object> error = new HashMap<String,Object>();
+					error.put("message", errorMessages);
+					error.put("detail", errorDetails);
+					error.put("value", "1");
+					
 					apiResponse.put("items", error);
+					
+					writeLog("Collection ID: " + collectionId + " was failed to be created.", "error");
+					
 					return new Viewable("/exception/error", apiResponse);
-				}else{
+				}else{*/if(errorMessages.size() == 0){
 					System.out.println("User : "+username+" creating collection : "+collectionId+"!");
 					secure.addPrivilage(session, collectionId);
 					secure.addAdminPrivilage(collectionId);
 					secure.insertLimitCollection(username);
 					secure.createLimitCrawler(collectionId, username);
 					
-					Map<String,Object> property = new HashMap<String,Object>();
+					/*Map<String,Object> property = new HashMap<String,Object>();
 					
 					property.put("message", "successful");
 					property.put("value", "0");
@@ -675,11 +789,11 @@ public class Collection {
 					
 					writeLog("Collection ID: " + collectionId + " was created successfully.", "info");
 					
-					return new Viewable("/general/ack", apiResponse);
+					return new Viewable("/general/ack", apiResponse);*/
 				}
 			}
 			else{
-				Map<String,Object> property = new HashMap<String,Object>();
+				/*Map<String,Object> property = new HashMap<String,Object>();
 				
 				String message = "Collection limit was reached."
 						+ "Unable create new collection";
@@ -687,28 +801,56 @@ public class Collection {
 				property.put("message", message);
 				property.put("value", "2");
 				
-				apiResponse.put("items", property);
+				apiResponse.put("items", property);*/
+				String message = "Unable to create new collection.";
+				String detail = "Collection limit was reached.";
+				
+				errorMessages.add(message);
+				errorDetails.add(detail);
 				
 				writeLog(message, "info");
 				
-				return new Viewable("/general/ack", apiResponse);
+				//return new Viewable("/general/ack", apiResponse);
 			}
 		}
 		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		Map<String,Object> apiResponse = new HashMap<String,Object>();
+		
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Collection ID: " + collectionId + " was failed to be created.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -727,7 +869,7 @@ public class Collection {
 	private Viewable delete(String collectionId, String session){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		
 		Security secure = new Security();
 		
@@ -738,90 +880,115 @@ public class Collection {
 			boolean isAnyCrawlerRun = crawler.isAnyCrawlerRun(collectionId);
 			
 			if(isAnyCrawlerRun){
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
-				errorProperty.put("code", "500");
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+				errorProperty.put("code", "500");*/
 				String message = "Unable to delete collection: " + collectionId + 
 						" because of its running crawler(s).";
 				String detail = "Stop all the crawler(s) and try to delete collection again.";
 				
-				errorProperty.put("message", message);
+				/*errorProperty.put("message", message);
 				errorProperty.put("detail", detail);
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(message);
+				errorDetails.add(detail);
 				
 //				System.out.println(message + "\n" + detail);
 				
-				apiResponse.put("items", error);
+				//apiResponse.put("items", error);
 				
-				writeLog(message + detail, "info");
+				writeLog(message + detail, "error");
+			}else{
+				SolrServer server = new HttpSolrServer(URL);
+				((HttpSolrServer) server).setParser(new XMLResponseParser());
 				
-				return new Viewable("/exception/error", apiResponse);
-			}
-			
-			SolrServer server = new HttpSolrServer(URL);
-			((HttpSolrServer) server).setParser(new XMLResponseParser());
-			
-			try {
-				if(new Core().isCoreLoaded(collectionId)){
-					try {
-						CoreAdminRequest.unloadCore(collectionId, true, true, server);
-					} catch (Exception e) {
-						Map<String,Object> errorProperty = new HashMap<String,Object>();
-						errorProperty.put("code", "500");
-						errorProperty.put("message", e.toString());
-						errorProperty.put("detail", sc.getStackTrace(e));
-						
-						error.add(errorProperty);
-						
-						writeLog(e, "error");
-						
-						e.printStackTrace();
+				try {
+					if(new Core().isCoreLoaded(collectionId)){
+						try {
+							CoreAdminRequest.unloadCore(collectionId, true, true, server);
+						} catch (Exception e) {
+							/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+							errorProperty.put("code", "500");
+							errorProperty.put("message", e.toString());
+							errorProperty.put("detail", sc.getStackTrace(e));
+							
+							error.add(errorProperty);*/
+							errorMessages.add(e.toString());
+							errorDetails.add(sc.getStackTrace(e));
+							
+							writeLog(e, "error");
+							
+							e.printStackTrace();
+						}
 					}
-				}
-			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
-				errorProperty.put("code", "500");
-				errorProperty.put("message", e.toString());
-				errorProperty.put("detail", sc.getStackTrace(e));
-				
-				error.add(errorProperty);
-				
-				writeLog(e, "error");
-				
-				e.printStackTrace();
-			}
-			
-			File collectionHomeDir = new File(collectionHome);
-			File[] collectionHomeFiles = collectionHomeDir.listFiles();
-			
-			for(File collectionHomeFile : collectionHomeFiles){
-				if(collectionHomeFile.isDirectory() && 
-						collectionHomeFile.getName().startsWith(collectionId)){
+				} catch (Exception e) {
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
 					
-					try {
-						FileUtils.deleteDirectory(collectionHomeFile);
-					} catch (Exception e) {
-						int retry = 0;
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
+				}
+				
+				File collectionHomeDir = new File(collectionHome);
+				File[] collectionHomeFiles = collectionHomeDir.listFiles();
+				
+				for(File collectionHomeFile : collectionHomeFiles){
+					if(collectionHomeFile.isDirectory() && 
+							collectionHomeFile.getName().startsWith(collectionId)){
 						
-						while(true){
-							if(collectionHomeFile.listFiles().length < 1){
-								break;
-							}
+						try {
+							FileUtils.deleteDirectory(collectionHomeFile);
+						} catch (Exception e) {
+							int retry = 0;
 							
-							if(retry > COLLECTION_DELETE_RETRY){
-								break;
-							}
-							
-							for (File file : collectionHomeFile.listFiles()) {
-							    try {
-									sc.runExec("unlocker \"" + file.getAbsolutePath() + "\" -S -D");
+							while(true){
+								if(collectionHomeFile.listFiles().length < 1){
+									break;
+								}
+								
+								if(retry > COLLECTION_DELETE_RETRY){
+									break;
+								}
+								
+								for (File file : collectionHomeFile.listFiles()) {
+								    try {
+										sc.runExec("unlocker \"" + file.getAbsolutePath() + "\" -S -D");
+									} catch (Exception e1) {
+										/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+										errorProperty.put("code", "500");
+										errorProperty.put("message", e1.toString());
+										errorProperty.put("detail", sc.getStackTrace(e1));
+										
+										error.add(errorProperty);*/
+										errorMessages.add(e1.toString());
+										errorDetails.add(sc.getStackTrace(e1));
+										
+										writeLog(e1, "error");
+										
+										e1.printStackTrace();
+									}
+								}
+								
+								retry++;
+								
+								try {
+									Thread.sleep(SLEEP_DELETE_RETRY_MS);
 								} catch (Exception e1) {
-									Map<String,Object> errorProperty = new HashMap<String,Object>();
+									/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 									errorProperty.put("code", "500");
 									errorProperty.put("message", e1.toString());
 									errorProperty.put("detail", sc.getStackTrace(e1));
 									
-									error.add(errorProperty);
+									error.add(errorProperty);*/
+									errorMessages.add(e1.toString());
+									errorDetails.add(sc.getStackTrace(e1));
 									
 									writeLog(e1, "error");
 									
@@ -829,103 +996,96 @@ public class Collection {
 								}
 							}
 							
-							retry++;
-							
 							try {
-								Thread.sleep(SLEEP_DELETE_RETRY_MS);
-							} catch (InterruptedException e1) {
-								Map<String,Object> errorProperty = new HashMap<String,Object>();
+								FileUtils.deleteDirectory(collectionHomeFile);
+							} catch (Exception e1) {
+								/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 								errorProperty.put("code", "500");
 								errorProperty.put("message", e1.toString());
 								errorProperty.put("detail", sc.getStackTrace(e1));
 								
-								error.add(errorProperty);
+								error.add(errorProperty);*/
+								errorMessages.add(e1.toString());
+								errorDetails.add(sc.getStackTrace(e1));
 								
 								writeLog(e1, "error");
 								
 								e1.printStackTrace();
 							}
-						}
-						
-						try {
-							FileUtils.deleteDirectory(collectionHomeFile);
-						} catch (IOException e1) {
-							Map<String,Object> errorProperty = new HashMap<String,Object>();
+							
+							/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 							errorProperty.put("code", "500");
-							errorProperty.put("message", e1.toString());
-							errorProperty.put("detail", sc.getStackTrace(e1));
+							errorProperty.put("message", e.toString());
+							errorProperty.put("detail", sc.getStackTrace(e));
 							
-							error.add(errorProperty);
+							error.add(errorProperty);*/
+							errorMessages.add(e.toString());
+							errorDetails.add(sc.getStackTrace(e));
 							
-							writeLog(e1, "error");
+							writeLog(e, "error");
 							
-							e1.printStackTrace();
+							e.printStackTrace();
 						}
-						
-						Map<String,Object> errorProperty = new HashMap<String,Object>();
-						errorProperty.put("code", "500");
-						errorProperty.put("message", e.toString());
-						errorProperty.put("detail", sc.getStackTrace(e));
-						
-						error.add(errorProperty);
-						
-						writeLog(e, "error");
-						
-						e.printStackTrace();
 					}
 				}
+				
+				try {
+					System.out.println("collection : "+collectionId+ " deleted!");
+					secure.removePrivilage(session, collectionId);
+					secure.remAdminPrivilege(collectionId);
+					secure.removeLimitCollection(collectionId);
+					secure.deleteLimitCrawler(collectionId);
+				} catch (Exception e) {
+					/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);*/
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
+				}
 			}
-			
-			try {
-				System.out.println("collection : "+collectionId+ " deleted!");
-				secure.removePrivilage(session, collectionId);
-				secure.remAdminPrivilege(collectionId);
-				secure.removeLimitCollection(collectionId);
-				secure.deleteLimitCrawler(collectionId);
-			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
-				errorProperty.put("code", "500");
-				errorProperty.put("message", e.toString());
-				errorProperty.put("detail", sc.getStackTrace(e));
-				
-				error.add(errorProperty);
-				
-				writeLog(e, "error");
-				
-				e.printStackTrace();
-			}
-			
-			if(error.size() > 0){
-				apiResponse.put("items", error);
-				return new Viewable("/exception/error", apiResponse);
-			}else{
-				Map<String,Object> property = new HashMap<String,Object>();
-				
-				property.put("message", "successful");
-				property.put("value", "0");
-				
-				apiResponse.put("items", property);
-				
-				writeLog("Collection ID: " + collectionId + " was deleted successfully.", "info");
-				
-				return new Viewable("/general/ack", apiResponse);
-			}
-		}
-		catch (Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+		} catch (Exception e){
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Collection ID: " + collectionId + " was failed to be deleted.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -944,18 +1104,20 @@ public class Collection {
 	private Viewable edit(String body){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		Map<String, String> jsonElements = null;
 		
 		try {
 			jsonElements = json.parse(body);
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
@@ -971,20 +1133,41 @@ public class Collection {
 			CoreAdminRequest.renameCore(collectionId, 
 					jsonElements.get("newCollectionId"), server);
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Collection ID: " + collectionId + " was failed to be edited.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1003,26 +1186,46 @@ public class Collection {
 	private Viewable getLocationCollection(String collectionId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String location = "";
 		try{
-			location = collectionHome+"\\"+collectionId;
-		}
-		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			location = collectionHome + "\\" + collectionId;
+		} catch(Exception e){
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Collection ID: " + collectionId + " location was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1032,141 +1235,178 @@ public class Collection {
 			
 			apiResponse.put("items", property);
 			
-			writeLog("Collection ID: " + collectionId + " ,location: " + location, "info");
+			writeLog("Collection ID: " + collectionId + " location: " + location + ".", "info");
 			
 			return new Viewable("/general/ack", apiResponse);
 		}
-		
 	}
 	
 	private Viewable getList(){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
 		List<Object> collectionDefinition = new ArrayList<Object>();
-		List<Object> error = new ArrayList<Object>();
-		ArrayList<String> existCollections = getExistCollection();
-		
-		SolrServer server = new HttpSolrServer(URL);
-		((HttpSolrServer) server).setParser(new XMLResponseParser());
-		
-		CoreAdminRequest request = new CoreAdminRequest();
+		//List<Object> error = new ArrayList<Object>();
+		ArrayList<String> existCollections = null;
 		CoreAdminResponse cores = null;
 		
 		try {
+			existCollections = getExistCollection();
+			
+			SolrServer server = new HttpSolrServer(URL);
+			((HttpSolrServer) server).setParser(new XMLResponseParser());
+			
+			CoreAdminRequest request = new CoreAdminRequest();
+			
 			request.setAction(CoreAdminAction.STATUS);
 			cores = request.process(server);
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();
 		}
 		
-		if(cores != null){
-			for(String existCollection : existCollections){
-				if(collectionLists.contains(existCollection)){
-					boolean isLoaded = false;
-					
-					for(int i = 0; i < cores.getCoreStatus().size(); i++){
-						if(existCollection.equals(cores.getCoreStatus().getName(i))){
-							isLoaded = true;
-							break;
-						}
-					}
-					
-					Map<String,Object> collectionProperty = new HashMap<String,Object>();
-					List<Object> keyValuePair = new ArrayList<Object>();
-					
-					if(isLoaded){
-						NamedList<?> statusList = cores.getCoreStatus(existCollection);
+		try{
+			if(cores != null){
+				for(String existCollection : existCollections){
+					if(collectionLists.contains(existCollection)){
+						boolean isLoaded = false;
 						
-						for(Object obj : statusList){
-							String[] keyValueString = obj.toString().split("=");
+						for(int i = 0; i < cores.getCoreStatus().size(); i++){
+							if(existCollection.equals(cores.getCoreStatus().getName(i))){
+								isLoaded = true;
+								break;
+							}
+						}
+						
+						Map<String,Object> collectionProperty = new HashMap<String,Object>();
+						List<Object> keyValuePair = new ArrayList<Object>();
+						
+						if(isLoaded){
+							NamedList<?> statusList = cores.getCoreStatus(existCollection);
 							
-							String key = keyValueString[0];
-							
-							if(key.equals("index")){
-								String[] keyValueIndexString = obj.toString().split(",");
-								for(int j=0; j < keyValueIndexString.length; j++){
-									Map<String,Object> keyValue = new HashMap<String,Object>();
-									String norm = keyValueIndexString[j].
-											replaceAll("^[a-zA-Z]*$=\\{|\\}", "");
-									
-									String[] separated = norm.split("=");
-		
-									if(norm.startsWith("directory")){
-										keyValue.put("key", separated[0].
-												replaceAll("\\{|\\}", ""));
-										String conc = "";
-										for(int k = 1;k < separated.length; k++){
-											conc = conc + "=" + separated[k];
+							for(Object obj : statusList){
+								String[] keyValueString = obj.toString().split("=");
+								
+								String key = keyValueString[0];
+								
+								if(key.equals("index")){
+									String[] keyValueIndexString = obj.toString().split(",");
+									for(int j=0; j < keyValueIndexString.length; j++){
+										Map<String,Object> keyValue = new HashMap<String,Object>();
+										String norm = keyValueIndexString[j].
+												replaceAll("^[a-zA-Z]*$=\\{|\\}", "");
+										
+										String[] separated = norm.split("=");
+			
+										if(norm.startsWith("directory")){
+											keyValue.put("key", separated[0].
+													replaceAll("\\{|\\}", ""));
+											String conc = "";
+											for(int k = 1;k < separated.length; k++){
+												conc = conc + "=" + separated[k];
+											}
+											keyValue.put("value", conc.substring(1));
+										}else{
+											keyValue.put("key", separated[separated.length-2].
+													replaceAll("\\{|\\}", ""));
+											keyValue.put("value", separated[separated.length-1].
+													replaceAll("\\{|\\}", ""));
 										}
-										keyValue.put("value", conc.substring(1));
-									}else{
-										keyValue.put("key", separated[separated.length-2].
-												replaceAll("\\{|\\}", ""));
-										keyValue.put("value", separated[separated.length-1].
-												replaceAll("\\{|\\}", ""));
+										
+										keyValuePair.add(keyValue);
 									}
+								}else if(key.equals("name")){
+									Map<String,Object> keyValue = new HashMap<String,Object>();
+									String value =  keyValueString[1];
+									
+									keyValue.put("key", key);
+									keyValue.put("value", value.replace(groupName + "-", ""));
+									
+									keyValuePair.add(keyValue);
+								}else{
+									Map<String,Object> keyValue = new HashMap<String,Object>();
+									String value =  keyValueString[1];
+									
+									keyValue.put("key", key);
+									keyValue.put("value", value);
 									
 									keyValuePair.add(keyValue);
 								}
-							}else if(key.equals("name")){
+							}
+							
+							//Add group node
+							Map<String,Object> keyValue = new HashMap<String,Object>();
+							
+							keyValue.put("key", "group");
+							keyValue.put("value", groupName);
+							
+							keyValuePair.add(keyValue);
+						}else{
+							String name = existCollection.replace(groupName + "-", "");
+							
+							String[] keys = {"name", "group"};
+							String[] values = {name, groupName};
+							
+							for(int i = 0; i < keys.length; i++){
 								Map<String,Object> keyValue = new HashMap<String,Object>();
-								String value =  keyValueString[1];
 								
-								keyValue.put("key", key);
-								keyValue.put("value", value.replace(groupName + "-", ""));
-								
-								keyValuePair.add(keyValue);
-							}else{
-								Map<String,Object> keyValue = new HashMap<String,Object>();
-								String value =  keyValueString[1];
-								
-								keyValue.put("key", key);
-								keyValue.put("value", value);
+								keyValue.put("key", keys[i]);
+								keyValue.put("value", values[i]);
 								
 								keyValuePair.add(keyValue);
 							}
 						}
 						
-						//Add group node
-						Map<String,Object> keyValue = new HashMap<String,Object>();
-						
-						keyValue.put("key", "group");
-						keyValue.put("value", groupName);
-						
-						keyValuePair.add(keyValue);
-					}else{
-						String name = existCollection.replace(groupName + "-", "");
-						
-						String[] keys = {"name", "group"};
-						String[] values = {name, groupName};
-						
-						for(int i = 0; i < keys.length; i++){
-							Map<String,Object> keyValue = new HashMap<String,Object>();
-							
-							keyValue.put("key", keys[i]);
-							keyValue.put("value", values[i]);
-							
-							keyValuePair.add(keyValue);
-						}
+						collectionProperty.put("keyValuePair", keyValuePair);
+						collectionDefinition.add(collectionProperty);
 					}
-					
-					collectionProperty.put("keyValuePair", keyValuePair);
-					collectionDefinition.add(collectionProperty);
 				}
 			}
+		} catch (Exception e) {
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
+			errorProperty.put("code", "500");
+			errorProperty.put("message", e.toString());
+			errorProperty.put("detail", sc.getStackTrace(e));
+			
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
+			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Collection list was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			apiResponse.put("items", collectionDefinition);
@@ -1177,7 +1417,7 @@ public class Collection {
 		}
 	}
 	
-	private ArrayList<String> getExistCollection(){
+	private ArrayList<String> getExistCollection() throws Exception {
 		ArrayList<String> collections = new ArrayList<String>();
 		
 		for(File colDir : new File(collectionHome).listFiles()){
@@ -1194,7 +1434,7 @@ public class Collection {
 		
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String status = "idle";
 		String collectionStatus = collectionHome+"\\"+collectionId+"\\status.collection";
 		
@@ -1202,12 +1442,14 @@ public class Collection {
 			try {
 				new FileManager().fileWriter(collectionStatus, "status=idle", false);
 			} catch (Exception e) {
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
+				/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 				errorProperty.put("code", "500");
 				errorProperty.put("message", e.toString());
 				errorProperty.put("detail", sc.getStackTrace(e));
 				
-				error.add(errorProperty);
+				error.add(errorProperty);*/
+				errorMessages.add(e.toString());
+				errorDetails.add(sc.getStackTrace(e));
 				
 				writeLog(e, "error");
 				
@@ -1223,20 +1465,41 @@ public class Collection {
 			status = (prop.getProperty("status"));
 		}
 		catch(Exception e){
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
 			writeLog(e, "error");
 			
 			e.printStackTrace();			
 		}
 		
-		if(error.size() > 0){
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
 			apiResponse.put("items", error);
+			
+			writeLog("Collection ID: " + collectionId + " status was failed to be retrieved.", "error");
+			
 			return new Viewable("/exception/error", apiResponse);
 		}else{
 			Map<String,Object> property = new HashMap<String,Object>();
@@ -1253,7 +1516,7 @@ public class Collection {
 		
 	}
 	
-	private ArrayList<String> getListFileToChange(String collectionDir){
+	private ArrayList<String> getListFileToChange(String collectionDir) throws Exception{
 		ArrayList<String> listFileToChange = new ArrayList<String>();
 		
 		listFileToChange.add(collectionDir+"\\conf\\solrconfig.xml");
