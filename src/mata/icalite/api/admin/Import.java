@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,6 +15,7 @@ import java.util.Properties;
 import java.util.Random;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
+import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
@@ -26,6 +29,7 @@ import mata.icalite.api.util.Json;
 import mata.icalite.api.util.Security;
 import mata.icalite.api.util.SystemControl;
 
+@Path("/import")
 public class Import {
 	private SystemControl sc = null;
 	private Json json = null;
@@ -51,6 +55,7 @@ public class Import {
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		List<Object> error = new ArrayList<Object>();
 		
+		Security secure = new Security();
 		try {
 			if(!new Security().derbyCheck(session)){
 				Map<String,Object> property = new HashMap<String,Object>();
@@ -60,6 +65,25 @@ public class Import {
 				
 				apiResponse.put("items", property);
 				return new Viewable("/general/ack", apiResponse);
+			}
+			else {
+				try{
+					if (!collectionId.toLowerCase().contains("colgroup")){
+						username = secure.getUser(session);
+						String groups = secure.getGroupDerby(username);
+						collectionId = groups+"-"+collectionId;
+					}
+				}
+				catch(Exception e){
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
 			}
 		}
 		catch(Exception e){
@@ -73,9 +97,7 @@ public class Import {
 			e.printStackTrace();
 		}
 		
-		if(method.equalsIgnoreCase("createImportFolder")){
-			return createImportFolder(collectionId,session);
-		}else if(method.equalsIgnoreCase("readCSV")){
+		if(method.equalsIgnoreCase("readCSV")){
 			return readCSV(collectionId,crawlerId);
 		}else if(method.equalsIgnoreCase("get")){
 			return get(collectionId,crawlerId);
@@ -106,6 +128,7 @@ public class Import {
 		
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		List<Object> error = new ArrayList<Object>();
+		Security secure = new Security();
 		
 		try {
 			if(!new Security().derbyCheck(session)){
@@ -116,6 +139,25 @@ public class Import {
 				
 				apiResponse.put("items", property);
 				return new Viewable("/general/ack", apiResponse);
+			}
+			else {
+				try{
+					if (!collectionId.toLowerCase().contains("colgroup")){
+						String username = secure.getUser(session);
+						String groups = secure.getGroupDerby(username);
+						collectionId = groups+"-"+collectionId;
+					}
+				}
+				catch(Exception e){
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
 			}
 		} catch (Exception e) {
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
@@ -135,6 +177,8 @@ public class Import {
 		
 		if(method.equalsIgnoreCase("create")){
 			return create(body,collectionId,importDir);
+		}else if(method.equalsIgnoreCase("createImportFolder")){
+			return createImportFolder(collectionId,session,body);
 		}else{
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
 			
@@ -168,21 +212,12 @@ public class Import {
 			e.printStackTrace();
 		}
 		
-		Properties configpropertiesprops = new Properties();
 		Properties configrunprops = new Properties();
 		
 		String importDir = collectionHome + "\\" + collectionId + "."+crawlerId;
 		
-		try{
-
-			FileOutputStream configpropertiesout = new FileOutputStream(importDir + "\\configproperties.cfg");
-			configpropertiesprops.setProperty("displayname", jsonElements.get("displayname"));
-			configpropertiesprops.setProperty("crawlerid", crawlerId);
-			configpropertiesprops.setProperty("type", jsonElements.get("type"));
-			configpropertiesprops.store(configpropertiesout, null);
-			configpropertiesout.close();				
-			
-			FileOutputStream configrunout = new FileOutputStream(importDir + "\\configrun.cfg");
+		try{			
+			OutputStream configrunout = new FileOutputStream(importDir + "\\configrun.cfg");
 			configrunprops.setProperty("fieldnames", jsonElements.get("fieldnames"));
 			configrunprops.setProperty("rowid", jsonElements.get("rowid"));
 			configrunprops.setProperty("header", jsonElements.get("header"));
@@ -221,8 +256,8 @@ public class Import {
 		String header = "";
 		
 		String importDir = collectionHome + "\\" + collectionId + "."+crawlerId;
-		
-		if(!new File(importDir).exists()){
+		System.out.println(importDir);
+		if(!new File(importDir+"\\configrun.cfg").exists()){
 			Map<String,Object> property = new HashMap<String,Object>();
 			
 			property.put("message", "no configrun file found, using default value");
@@ -234,7 +269,7 @@ public class Import {
 		
 		try{				
 			
-			FileInputStream configrunin = new FileInputStream(importDir + "\\configrun.cfg");
+			InputStream configrunin = new FileInputStream(importDir + "\\configrun.cfg");
 			Properties props = new Properties();
 			props.load(configrunin);
 			
@@ -245,6 +280,7 @@ public class Import {
 			configrunin.close();
 		}
 		catch(Exception e){
+			e.printStackTrace();
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", "Failed");
@@ -265,11 +301,11 @@ public class Import {
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
-			return new Viewable("/get/ack", apiResponse);
+			return new Viewable("/import/get", apiResponse);
 		}
 	}
 	
-	private Viewable createImportFolder(String collectionId, String session){
+	private Viewable createImportFolder(String collectionId, String session, String body){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		List<Object> error = new ArrayList<Object>();
 
@@ -279,6 +315,20 @@ public class Import {
 		String randomName = Integer.toString(randInt(10000, 99999));
 		
 		String jarResourceDir = caxHome + "\\example\\resources\\jar\\crawler";
+		
+		Map<String, String> jsonElements = null;
+		try {
+			jsonElements = json.parse(body);
+		} catch (Exception e) {
+			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			errorProperty.put("code", "500");
+			errorProperty.put("message", e.toString());
+			errorProperty.put("detail", sc.getStackTrace(e));
+			
+			error.add(errorProperty);
+			
+			e.printStackTrace();
+		}
 
 		try{
 			username = secure.getUser(session);
@@ -298,9 +348,18 @@ public class Import {
 				
 				fm.copyFile(jarResourceDir + "\\csvimport.jar", importDir + "\\csvimport.jar");
 				fm.fileWriter(importDir + "\\start.cfg", "startcrawl=stop\r\npid=", false);
+				
+				Properties configpropertiesprops = new Properties();
+				OutputStream configpropertiesout = new FileOutputStream(importDir + "\\configproperties.cfg");
+				configpropertiesprops.setProperty("displayname", jsonElements.get("displayname"));
+				configpropertiesprops.setProperty("crawlerid", "IMPORT_" + randomName);
+				configpropertiesprops.setProperty("type", jsonElements.get("type"));
+				configpropertiesprops.store(configpropertiesout, null);
+				configpropertiesout.close();	
 			}
 		}
 		catch(Exception e){
+			e.printStackTrace();
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", "Failed");
