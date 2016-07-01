@@ -21,7 +21,7 @@ public class RegisterPage {
 	private SystemControl sc = null;
 	private String caxHome = null;
 	private String emailTemplateDir = null;
-	private String userEmailTemplate = null;
+//	private String userEmailTemplate = null;
 	private String userEmailNoPassTemplate = null;
 	private String recipientAdmin = null;
 	private String adminEmailTemplate = null;
@@ -30,7 +30,7 @@ public class RegisterPage {
 		sc = new SystemControl();
 		caxHome = System.getenv("SOLR_HOME");
 		emailTemplateDir = caxHome + "\\example\\resources\\config_template\\template_email";
-		userEmailTemplate = emailTemplateDir+"\\user_template.txt";
+//		userEmailTemplate = emailTemplateDir+"\\user_template.txt";
 		userEmailNoPassTemplate = emailTemplateDir+"\\user_nopass_template.txt";
 		adminEmailTemplate = emailTemplateDir+"\\admin_template.txt";
 		recipientAdmin = emailTemplateDir+"\\admin_recipient_email_list.txt";

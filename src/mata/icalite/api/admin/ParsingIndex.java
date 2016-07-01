@@ -23,7 +23,6 @@ import org.apache.solr.client.solrj.impl.XMLResponseParser;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
 
 import mata.icalite.api.util.FileManager;
-import mata.icalite.api.util.Post;
 import mata.icalite.api.util.Security;
 import mata.icalite.api.util.SystemControl;
 
@@ -368,22 +367,22 @@ public class ParsingIndex {
 		}
 	}
 	
-	private boolean testReloadedCollection(String collectionId) throws Exception{
-		String fileDir = collectionHome+"\\"+collectionId+"\\conf\\";
-		
-    	try {
-			Post postSolr = new Post(fileDir);
-			postSolr.run(fileDir+"sampleAdd.txt",true);
-			Thread.sleep(3000);
-			postSolr.run(fileDir+"sampleDelete.txt",false);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			new FileManager().fileWriter(fileDir+"\\log.txt", SystemControl.getCurrentTime()+" - FAILED TO PUSH TO SOLR - COLLECTION ERROR", true);
-			return false;
-		}
-		
-		return true;
-	}
+//	private boolean testReloadedCollection(String collectionId) throws Exception{
+//		String fileDir = collectionHome+"\\"+collectionId+"\\conf\\";
+//		
+//    	try {
+//			Post postSolr = new Post(fileDir);
+//			postSolr.run(fileDir+"sampleAdd.txt",true);
+//			Thread.sleep(3000);
+//			postSolr.run(fileDir+"sampleDelete.txt",false);
+//		} catch (Exception e) {
+//			// TODO Auto-generated catch block
+//			new FileManager().fileWriter(fileDir+"\\log.txt", SystemControl.getCurrentTime()+" - FAILED TO PUSH TO SOLR - COLLECTION ERROR", true);
+//			return false;
+//		}
+//		
+//		return true;
+//	}
 	
 	private Viewable startParsing(String collectionId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
