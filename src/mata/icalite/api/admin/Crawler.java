@@ -23,11 +23,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -39,7 +36,6 @@ import org.json.JSONObject;
 import org.json.XML;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
-import org.xml.sax.SAXException;
 
 import com.google.common.net.InternetDomainName;
 import com.sun.jersey.api.view.Viewable;
@@ -94,6 +90,9 @@ public class Crawler {
 				property.put("value", "1");
 				
 				apiResponse.put("items", property);
+				
+				writeLog("Session expired. token: " + session, "info");
+				
 				return new Viewable("/general/ack", apiResponse);
 			}
 			else {
@@ -216,6 +215,9 @@ public class Crawler {
 				property.put("value", "1");
 				
 				apiResponse.put("items", property);
+				
+				writeLog("Session expired. token: " + session, "info");
+				
 				return new Viewable("/general/ack", apiResponse);
 			}
 			else {
@@ -536,7 +538,6 @@ public class Crawler {
 								errorMessages.add(e.toString());
 								errorDetails.add(sc.getStackTrace(e));
 								
-								
 								writeLog(e, "error");
 								
 								e.printStackTrace();
@@ -657,17 +658,16 @@ public class Crawler {
 		
 		SystemControl sc = new SystemControl();
 		String pidString = "";
+		FileInputStream in = null;
 		
 		try {
-			FileInputStream in = new FileInputStream(collectionDir + "\\start.cfg");
+			in = new FileInputStream(collectionDir + "\\start.cfg");
 			Properties prop = new Properties();
 			prop.load(in);
 			
 			pidString = prop.getProperty("pid");
 			String[] pidStrings = pidString.split("@");
 			pidString = pidStrings[0];
-			
-			in.close();
 		} catch (Exception e) {
 			errorMessages.add(e.toString());
 			errorDetails.add(sc.getStackTrace(e));
@@ -675,6 +675,10 @@ public class Crawler {
 			writeLog(e, "error");
 			
 			e.printStackTrace();
+		} finally {
+			if(in != null){
+				in.close();
+			}
 		}
 		
 		try {
@@ -842,19 +846,19 @@ public class Crawler {
 						}
 					}
 					
+					FileInputStream in = null;
+					FileOutputStream out = null;
+					
 					try {
-						FileInputStream in = new FileInputStream(collectionDir + "\\configproperties.cfg");
+						in = new FileInputStream(collectionDir + "\\configproperties.cfg");
 						Properties props = new Properties();
 						props.load(in);
-						in.close();
 
-						FileOutputStream out = new FileOutputStream(collectionDir + "\\configproperties.cfg");
+						out = new FileOutputStream(collectionDir + "\\configproperties.cfg");
 						props.setProperty("displayname", jsonElements.get("displayname"));
 						props.setProperty("crawlerid", "WEB_" + randomName);
 						props.setProperty("type", jsonElements.get("type"));
 						props.store(out, null);
-						
-						out.close();
 					} catch (Exception e) {
 						/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 						errorProperty.put("code", "500");
@@ -868,13 +872,20 @@ public class Crawler {
 						writeLog(e, "error");
 						
 						e.printStackTrace();
+					} finally {
+						if(in != null){
+							in.close();;
+						}
+
+						if(out != null){
+							out.close();
+						}
 					}
 					
 					try {
-						FileInputStream in = new FileInputStream(collectionDir + "\\configrun.cfg");
+						in = new FileInputStream(collectionDir + "\\configrun.cfg");
 						Properties props = new Properties();
 						props.load(in);
-						in.close();
 						
 						String[] propertiesToWrite = {"useragent","depthlink","thread",
 								"linktofollow","linktoforbid","forumconfigloc","newsconfigloc", "url", "keyword", "progressive"};
@@ -884,7 +895,7 @@ public class Crawler {
 						String[] propertiesYtToWrite = {"videosearchtype","keyword","progressive","videokeywordascommentfilter","key"};
 						String[] propertiesIgToWrite = {"delaybetweenrequest","searchtype","search","usesearchasfilter"};
 						
-						FileOutputStream out = new FileOutputStream(collectionDir + "\\configrun.cfg");
+						out = new FileOutputStream(collectionDir + "\\configrun.cfg");
 						
 						if(type.equals("facebook")){
 							for(String property : propertiesFbToWrite){
@@ -926,8 +937,6 @@ public class Crawler {
 						}
 						
 						props.store(out, null);
-						
-						out.close();
 					} catch (Exception e) {
 						/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 						errorProperty.put("code", "500");
@@ -941,7 +950,15 @@ public class Crawler {
 						writeLog(e, "error");
 						
 						e.printStackTrace();
-					} 
+					} finally {
+						if(in != null){
+							in.close();;
+						}
+
+						if(out != null){
+							out.close();
+						}
+					}
 					
 					try{
 //						secure.insertLimitCrawler(username, collectionId);
@@ -2030,6 +2047,7 @@ public class Crawler {
 //			e3.printStackTrace();
 //		}
 		FileInputStream in = null;
+		
 		try {
 			in = new FileInputStream(collectionDir + "\\configproperties.cfg");
 			Properties props = new Properties();
@@ -2052,7 +2070,7 @@ public class Crawler {
 			if(in != null){
 				try {
 					in.close();
-				} catch (IOException e) {
+				} catch (Exception e) {
 					errorMessages.add(e.toString());
 					errorDetails.add(sc.getStackTrace(e));
 					
@@ -2198,7 +2216,7 @@ public class Crawler {
 				if(in != null){
 					try {
 						in.close();
-					} catch (IOException e) {
+					} catch (Exception e) {
 						errorMessages.add(e.toString());
 						errorDetails.add(sc.getStackTrace(e));
 						
@@ -2511,7 +2529,7 @@ public class Crawler {
 	private Viewable getListTemplate(String type){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String templateDir = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\"+type;
 		ArrayList<String> listTemplate = new ArrayList<String>();
 		ArrayList<String> listTemplateFinal = new ArrayList<String>();
@@ -2527,17 +2545,22 @@ public class Crawler {
 					xmlbuilder = ""+xmlbuilder+"<template>"+template+"</template>\r\n";
 				}
 			}
-		}
-		catch(Exception e){			
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+		} catch(Exception e){			
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+			
+			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		/*if(error.size() > 0){
 			apiResponse.put("items", error);
 			return new Viewable("/exception/error", apiResponse);
 		}else{
@@ -2548,40 +2571,105 @@ public class Crawler {
 			
 			apiResponse.put("items", property);
 			return new Viewable("/general/ack", apiResponse);
+		}*/
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
+			apiResponse.put("items", error);
+			
+			writeLog("Getting list template was failed to be retrieved.", "error");
+			
+			return new Viewable("/exception/error", apiResponse);
+		}else{
+			Map<String,Object> property = new HashMap<String,Object>();
+			
+			property.put("message", xmlbuilder);
+			property.put("value", "0");
+			
+			apiResponse.put("items", property);
+			
+			writeLog("List template was retrieved successfully.", "info");
+			
+			return new Viewable("/general/ack", apiResponse);
 		}
 	}
 	
 	private Viewable deleteUrlCache(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 		
 		String pidString = "";
+		FileInputStream in = null;
+		FileOutputStream out = null;
+		
 		try {
-			FileInputStream in = new FileInputStream(collectionDir + "\\start.cfg");
+			in = new FileInputStream(collectionDir + "\\start.cfg");
 			Properties prop = new Properties();	
 			prop.load(in);
 			pidString = prop.getProperty("pid");
 			String[] pidStrings = pidString.split("@");
 			pidString = pidStrings[0];
-			in.close();
 			
-			FileOutputStream out = new FileOutputStream(collectionDir + "\\start.cfg");
+			out = new FileOutputStream(collectionDir + "\\start.cfg");
 			prop.setProperty("startcrawl", "stop");
 			prop.store(out, null);
-			out.close();
-			Thread.sleep(5000);
 			
+			Thread.sleep(5000);
 		} catch (Exception e) {
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 			
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 			
 			e.printStackTrace();
+		} finally {
+			if(in != null){
+				try {
+					in.close();
+				} catch (Exception e) {
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
+				}
+			}
+
+			if(out != null){
+				try {
+					out.close();
+				} catch (Exception e) {
+					errorMessages.add(e.toString());
+					errorDetails.add(sc.getStackTrace(e));
+					
+					writeLog(e, "error");
+					
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		
@@ -2598,46 +2686,49 @@ public class Crawler {
 //						FileDeleteStrategy.FORCE.delete(new File(collectionDir + "\\outputcrawler\\frontier"));
 						fm.deleteFile(collectionDir + "\\outputcrawler\\frontier", true);
 					}
-					catch(Exception e){
-						
-					}
+					catch(Exception e){}
+					
 					retry++;
 					
 					try {
 						Thread.sleep(SLEEP_DELETE_RETRY_MS);
-					} catch (InterruptedException e1) {
-//						e1.printStackTrace();
-					}
+					} catch (Exception e1) {}
 				}
 			}
-		}
-		
-		catch(Exception e){
-			Map<String,Object> property = new HashMap<String,Object>();
+		} catch(Exception e){
+			/*Map<String,Object> property = new HashMap<String,Object>();
 			
 			property.put("message", "no url cache");
 			property.put("value", "0");
 			
 			apiResponse.put("items", property);
-			return new Viewable("/general/ack", apiResponse);
+			return new Viewable("/general/ack", apiResponse);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
+		
+			e.printStackTrace();
 		}
 						
 		try {
 			Runtime.getRuntime().exec("cmd /c start "+collectionDir+"\\startcrawl.bat");
-			} 
-		catch (Exception e) {
-				
-			Map<String,Object> errorProperty = new HashMap<String,Object>();
+		} catch (Exception e) {
+			/*Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");
 			errorProperty.put("message", e.toString());
 			errorProperty.put("detail", sc.getStackTrace(e));
 		
-			error.add(errorProperty);
+			error.add(errorProperty);*/
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
+			
+			writeLog(e, "error");
 		
 			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		/*if(error.size() > 0){
 			apiResponse.put("items", error);
 			return new Viewable("/exception/error", apiResponse);
 		}else{
@@ -2648,17 +2739,50 @@ public class Crawler {
 			
 			apiResponse.put("items", property);
 			return new Viewable("/general/ack", apiResponse);
+		}*/
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
+			apiResponse.put("items", error);
+			
+			writeLog("Deleting URL cache was failed to be created.", "error");
+			
+			return new Viewable("/exception/error", apiResponse);
+		}else{
+			Map<String,Object> property = new HashMap<String,Object>();
+			
+			property.put("message", "successful");
+			property.put("value", "0");
+			
+			apiResponse.put("items", property);
+			
+			writeLog("URL cache was deleted successfully.", "info");
+			
+			return new Viewable("/general/ack", apiResponse);
 		}
 	}
 	
 	private Viewable getTotalDocument(String collectionId, String crawlerId){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		
-		List<Object> error = new ArrayList<Object>();
+		//List<Object> error = new ArrayList<Object>();
 		String collectionDir = collectionHome + "\\" + collectionId + "." + crawlerId;
 		
 		int totalDoc = 0;
-		
 		
 		try{
 			List<File> filesDest = (List<File>) FileUtils.listFiles(new File(collectionDir+"\\outputcrawler"), TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE);
@@ -2669,10 +2793,15 @@ public class Crawler {
 			}
 		}
 		catch(Exception e){
+			errorMessages.add(e.toString());
+			errorDetails.add(sc.getStackTrace(e));
 			
+			writeLog(e, "error");
+		
+			e.printStackTrace();
 		}
 		
-		if(error.size() > 0){
+		/*if(error.size() > 0){
 			apiResponse.put("items", error);
 			return new Viewable("/exception/error", apiResponse);
 		}else{
@@ -2683,10 +2812,44 @@ public class Crawler {
 			
 			apiResponse.put("items", property);
 			return new Viewable("/general/ack", apiResponse);
+		}*/
+		if(errorMessages.size() > 0){
+			Map<String,Object> error = new HashMap<String,Object>();
+			String messages = "";
+			for(String message : errorMessages){
+				messages += message + "\n";
+			}
+			
+			error.put("message", messages);
+			
+			String details = "";
+			for(String detail : errorDetails){
+				details += detail + "\n";
+			}
+			
+			error.put("detail", details);
+			error.put("value", "1");
+			
+			apiResponse.put("items", error);
+			
+			writeLog("Getting total document was failed to be retrieved.", "error");
+			
+			return new Viewable("/exception/error", apiResponse);
+		}else{
+			Map<String,Object> property = new HashMap<String,Object>();
+			
+			property.put("message", "total document : " + totalDoc);
+			property.put("value", "0");
+			
+			apiResponse.put("items", property);
+			
+			writeLog("Total document was retrieved successfully.", "info");
+			
+			return new Viewable("/general/ack", apiResponse);
 		}
 	}
 	
-	private int randInt(int min, int max) {
+	private int randInt(int min, int max) throws Exception {
 	    Random rand = new Random();
 
 	    int randomNum = rand.nextInt((max - min) + 1) + min;
