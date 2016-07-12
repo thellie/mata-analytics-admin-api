@@ -427,7 +427,7 @@ public class Import {
 				}
 				countrecord++;
 				allRecords.add(recordsPerLine);
-				if(countrecord==5){
+				if(countrecord==10){
 					break;
 				}
 			}
