@@ -733,6 +733,25 @@ public class Security {
 		    return userName;
 	  }
 	  
+	  public String getSession(String username) throws Exception{
+		  	String session = "";
+		  	Class.forName(driver).newInstance();
+		  	connect = DriverManager.getConnection(protocol + "c:\\caxDB\\");
+//		    PreparedStatement statement = connect.prepareStatement("CREATE TABLE sessiontable (id int, text varchar(50)");
+		    Statement statement = connect.createStatement();
+		    ResultSet res = statement.executeQuery("SELECT * FROM sessiontable where username='"+username+"'"); 
+		    
+		    while (res.next()) {
+//		    	System.out.println(res.getString("sessionid"));
+//		    	System.out.println(res.getString("timestamps"));
+//		    	System.out.println(res.getString("username"));
+		    	session = res.getString("sessionid");
+//		    	System.out.println("Welcome Back "+userName+"");
+		    }
+		    closeDB();
+		    return session;
+	  }
+	  
 	  public boolean addPrivilage(String sessionID, String collectionId) throws Exception{
 		  
 		  try{

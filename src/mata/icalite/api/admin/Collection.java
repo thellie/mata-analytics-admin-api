@@ -4,12 +4,14 @@ import mata.icalite.api.util.*;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -254,6 +256,8 @@ public class Collection {
 			return createV2(body,session);
 		}else if(method.equalsIgnoreCase("edit")){
 			return edit(body);
+		}else if(method.equalsIgnoreCase("clone")){
+			return clone(body,session);
 		}else{
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
 			
@@ -400,6 +404,257 @@ public class Collection {
 					secure.addAdminPrivilage(collectionId);
 					secure.insertLimitCollection(username);
 					secure.createLimitCrawler(collectionId, username);
+					
+					Map<String,Object> property = new HashMap<String,Object>();
+					
+					property.put("message", "successful");
+					property.put("value", "0");
+					
+					apiResponse.put("items", property);
+					return new Viewable("/general/ack", apiResponse);
+				}
+			}
+			else{
+				Map<String,Object> property = new HashMap<String,Object>();
+				
+				property.put("message", "collection reach max");
+				property.put("value", "2");
+				
+				apiResponse.put("items", property);
+				return new Viewable("/general/ack", apiResponse);
+			}
+		}
+		catch(Exception e){
+			Map<String,Object> errorProperty = new HashMap<String,Object>();
+			errorProperty.put("code", "500");
+			errorProperty.put("message", e.toString());
+			errorProperty.put("detail", sc.getStackTrace(e));
+			
+			error.add(errorProperty);
+			
+			e.printStackTrace();
+		}
+		
+		if(error.size() > 0){
+			apiResponse.put("items", error);
+			return new Viewable("/exception/error", apiResponse);
+		}else{
+			Map<String,Object> property = new HashMap<String,Object>();
+			
+			property.put("message", "successful");
+			property.put("value", "0");
+			
+			apiResponse.put("items", property);
+			return new Viewable("/general/ack", apiResponse);
+		}
+
+		
+	}
+	
+	private Viewable clone(String body,String session){
+		Map<String,Object> apiResponse = new HashMap<String,Object>();
+		
+		List<Object> error = new ArrayList<Object>();
+		Map<String, String> jsonElements = null;	
+		Security secure = new Security();
+		String targetcollectionId = "";
+		String targetusername = "";
+		
+		try{
+			String username = secure.getUser(session);	
+			if(secure.derbyCheckCollection(username)){
+				try {
+					jsonElements = json.parse(body);
+					targetcollectionId = jsonElements.get("targetcollectionId");
+					targetusername = jsonElements.get("targetusername");
+					String targetgroupName = secure.getGroupDerby(targetusername);
+					
+					System.out.println(targetcollectionId+" "+targetusername);
+					
+					if (targetcollectionId != null && 
+							!targetcollectionId.isEmpty() &&
+							!targetcollectionId.toLowerCase().contains("colgroup")){
+						targetcollectionId = targetgroupName + "-" + targetcollectionId;
+					}
+					
+				} catch (Exception e) {
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
+				
+				String configResourceDirV2 = collectionHome + "\\" + jsonElements.get("collectionId");
+				String status = new FileManager().readData(configResourceDirV2+"\\status.collection");
+				if(!status.contains("unloaded")){
+		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", "Collection busy");
+					errorProperty.put("detail", "Please stop collection first");
+					
+					error.add(errorProperty);
+					apiResponse.put("items", error);
+					return new Viewable("/exception/error", apiResponse);
+					
+				}
+				String collectionDir = collectionHome + "\\" + targetcollectionId;
+	
+		        SolrServer server = new HttpSolrServer(URL);
+		        ((HttpSolrServer) server).setParser(new XMLResponseParser());
+		        
+		        File collectionDirFile = new File(collectionDir);
+		        
+		        if(collectionDirFile.isDirectory()){
+		        	Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", "Collection already exist.");
+					errorProperty.put("detail", "Choose different ID for collection.");
+					
+					error.add(errorProperty);
+		        }else{
+		        	collectionDirFile.mkdirs();
+		        	ArrayList<String> listPear = new ArrayList<String>();
+		        	FileManager fman = new FileManager();
+		        	listPear = fman.listFile(pearResourceDir);
+		        	for(String pear : listPear){
+		        		if(pear.contains(".pear")){
+		        			fman.copyFile(pearResourceDir+pear, collectionDir+"\\"+pear);
+		        		}
+		        	}	
+		        }
+		       
+		        try {
+		        	FileUtils.copyDirectory(new File(configResourceDirV2), collectionDirFile);
+		        	if(new File(collectionDirFile+"\\core.properties").exists()){
+		        		new FileManager().deleteFile(collectionDirFile+"\\core.properties", false);
+		        	}
+				} catch (Exception e) {
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
+		        
+		        String collectionId = jsonElements.get("collectionId").replace(" ", "_");
+		        targetcollectionId = targetcollectionId.replace(" ", "_");
+	//			System.out.println("coldir" +collectionDir);
+				try {
+					//changing MasterTemplate to current collectoinId
+					ArrayList<String> listFileToChange = new ArrayList<String>();
+					listFileToChange = getListFileToChange(collectionDir);
+					FileManager fm = new FileManager();
+					for(String fileToChange : listFileToChange){
+						String content = fm.readData(fileToChange);
+						content = content.replace(collectionId, targetcollectionId);
+						fm.fileWriter(fileToChange, content, false);
+					}
+					new FileManager().fileWriter(collectionDir+"\\status.collection", "status=unloaded", false);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+		        
+		        if(new File(collectionHome + "\\" + targetcollectionId).isDirectory()){
+		        	Pattern pattern = Pattern.compile("[0-9]*$");
+		        	Matcher matcher = pattern.matcher(targetcollectionId);
+		        	if(matcher.matches()){
+		        		String num = null;
+		        		while(matcher.find()) {
+		        		    if(matcher.hitEnd()){
+		        		    	num = matcher.group(1);
+		        		    }
+		        		}
+		        		targetcollectionId = targetcollectionId.replace(num, 
+		        				(Integer.toString(Integer.parseInt(num) + 1)));
+		        	}
+		        }
+		        
+		        ArrayList<String> listAllFolder = new ArrayList<String>();
+		        ArrayList<String> listCrawler = new ArrayList<String>();
+		        FileManager fm = new FileManager();
+		        listAllFolder = fm.listFolder(collectionHome);
+		        for(String crawler : listAllFolder){
+		        	if(crawler.contains(collectionId)){
+		        		if(crawler.contains("WEB")){
+		        			listCrawler.add(crawler);
+		        		}
+		        	}
+		        }
+		        
+		        for(String crawlerDir : listCrawler){
+		        	String sourceCrawler = collectionHome + "\\" +crawlerDir;
+		        	String randomName = Integer.toString(randInt(10000, 99999));		        	
+		        	String targetCrawler = collectionHome + "\\" +targetcollectionId + ".WEB_" + randomName;
+		        	File file = new File(targetCrawler);
+		        	
+		        	while(file.exists()){
+			        	randomName = Integer.toString(randInt(10000, 99999));		        	
+			        	targetCrawler = collectionHome + "\\" +targetcollectionId + ".WEB_" + randomName;
+			        	file = new File(targetCrawler);
+		        	}
+
+		        	fm.createDir(targetCrawler);
+		        	FileUtils.copyDirectory(new File(sourceCrawler), new File(targetCrawler));
+		        	
+					FileInputStream in = new FileInputStream(targetCrawler + "\\configproperties.cfg");
+					Properties props = new Properties();
+					props.load(in);
+					String displayname = props.getProperty("displayname");
+					String type = props.getProperty("type");
+					in.close();
+
+					FileOutputStream out = new FileOutputStream(targetCrawler + "\\configproperties.cfg");
+					props.setProperty("displayname", displayname);
+					props.setProperty("crawlerid", "WEB_" + randomName);
+					props.setProperty("type", type);
+					props.store(out, null);
+					
+					out.close();
+		        }
+		        
+		        try {
+					CoreAdminRequest.createCore(targetcollectionId, targetcollectionId, server);
+					new FileManager().fileWriter(collectionDir+"\\status.collection", "status=idle", false);
+				} catch (Exception e) {
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
+				try {
+					
+				} catch (Exception e) {
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
+				
+				if(error.size() > 0){
+					apiResponse.put("items", error);
+					return new Viewable("/exception/error", apiResponse);
+				}else{
+					System.out.println("User : "+targetcollectionId+" creating collection : "+targetcollectionId+"!");
+					String sessiontarget = secure.getSession(targetusername);
+					secure.addPrivilage(sessiontarget, targetcollectionId);
+					secure.addAdminPrivilage(targetcollectionId);
+					secure.insertLimitCollection(targetusername);
+					secure.createLimitCrawler(targetcollectionId, targetusername);
 					
 					Map<String,Object> property = new HashMap<String,Object>();
 					
@@ -1110,5 +1365,13 @@ public class Collection {
 		listFileToChange.add(collectionDir+"\\StartPearManager.bat");		
 		
 		return listFileToChange;
+	}
+	
+	private int randInt(int min, int max) {
+	    Random rand = new Random();
+
+	    int randomNum = rand.nextInt((max - min) + 1) + min;
+
+	    return randomNum;
 	}
 }
