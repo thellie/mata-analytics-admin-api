@@ -461,7 +461,7 @@ public class Collection {
 		String targetusername = "";
 		
 		try{
-			String username = secure.getUser(session);	
+			String username = secure.getUser(session);
 			if(secure.derbyCheckCollection(username)){
 				try {
 					jsonElements = json.parse(body);
@@ -475,6 +475,17 @@ public class Collection {
 							!targetcollectionId.isEmpty() &&
 							!targetcollectionId.toLowerCase().contains("colgroup")){
 						targetcollectionId = targetgroupName + "-" + targetcollectionId;
+					}
+					
+					if(!secure.derbyCheckCollection(targetusername)){
+			        	Map<String,Object> errorProperty = new HashMap<String,Object>();
+						errorProperty.put("code", "500");
+						errorProperty.put("message", "Target username collection reach limit");
+						errorProperty.put("detail", "Please upgrade your plan or delete some collection first");
+						
+						error.add(errorProperty);
+						apiResponse.put("items", error);
+						return new Viewable("/exception/error", apiResponse);
 					}
 					
 				} catch (Exception e) {
@@ -576,6 +587,7 @@ public class Collection {
 		        	}
 		        }
 		        
+		        secure.updateLimitCrawler(targetcollectionId, targetusername);
 		        ArrayList<String> listAllFolder = new ArrayList<String>();
 		        ArrayList<String> listCrawler = new ArrayList<String>();
 		        FileManager fm = new FileManager();
@@ -583,7 +595,13 @@ public class Collection {
 		        for(String crawler : listAllFolder){
 		        	if(crawler.contains(collectionId)){
 		        		if(crawler.contains("WEB")){
-		        			listCrawler.add(crawler);
+		        			if(secure.derbyCheckCrawler(targetcollectionId, targetusername)){
+		        				listCrawler.add(crawler);
+		        				secure.insertLimitCrawler(targetusername, targetcollectionId);
+		        			}
+		        			else{
+		        				
+		        			}
 		        		}
 		        	}
 		        }

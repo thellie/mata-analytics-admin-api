@@ -879,9 +879,14 @@ public class Security {
 		  	connect = DriverManager.getConnection(protocol + "c:\\caxDB\\");
 		    Statement statement = connect.createStatement();
 		    
-		    ResultSet res = statement.executeQuery(
-		    		"SELECT * FROM sosmedtoken where "
-		    		+ "username='" + username + "' OR username='freeusertrial'");
+		    String query = "SELECT * FROM sosmedtoken where "
+		    		+ "username='" + username + "' OR username='freeusertrial'";
+		    
+		    if(username.equalsIgnoreCase("administrator")){
+		    	query = "SELECT * FROM sosmedtoken";
+		    }
+		    
+		    ResultSet res = statement.executeQuery(query);
 		    ArrayList<ArrayList<String>> tokens = new ArrayList<ArrayList<String>>();
 		    
 		    while(res.next()) {
@@ -898,13 +903,24 @@ public class Security {
 		    return tokens;
 	  }
 	  
-	  public void setSocMedToken(String username, String token, 
+	  public boolean setSocMedToken(String username, String token, 
 			  String type, String alias, String keyid, String secret) throws Exception{
 		  	Class.forName(driver).newInstance();
 		  	connect = DriverManager.getConnection(protocol + "c:\\caxDB\\");
 		    Statement statement = connect.createStatement();
 		    
 		    type = type.toLowerCase();
+		    
+		    String query = "SELECT * FROM sosmedtoken";
+		    ResultSet res = statement.executeQuery(query);
+		    
+		    while(res.next()){
+		    	String aliasCheck = res.getString("alias");
+		    	if(aliasCheck.equalsIgnoreCase(alias)){
+		    		System.out.println("alias found");
+		    		return false;
+		    	}
+		    }
 		    
 		    if(alias != null && !alias.isEmpty()){
 		    	 statement.executeUpdate("INSERT INTO sosmedtoken "
@@ -927,6 +943,7 @@ public class Security {
 		    }
 		    
 		    closeDB();
+		    return true;
 	  }
 	  
 	  public void editSocMedToken(String username, String token, 
@@ -940,7 +957,7 @@ public class Security {
 	    			+ "token='"+token+"', "
 	    			+ "keyid='"+keyid+"', "
 	    			+ "secret='"+secret+"' "
-	    			+ "where username='"+username+"' and "
+	    			+ "where "
 	    			+ "alias='"+alias+"'";
 	    	statement.executeUpdate(command);
 		    closeDB();
@@ -951,8 +968,7 @@ public class Security {
 		  	connect = DriverManager.getConnection(protocol + "c:\\caxDB\\");
 		    Statement statement = connect.createStatement();
 		    
-		    statement.executeUpdate("DELETE FROM sosmedtoken WHERE username='"
-		    		+ username + "' AND alias='"
+		    statement.executeUpdate("DELETE FROM sosmedtoken WHERE alias='"
 		    		+ alias + "'"
 		    );
 		    

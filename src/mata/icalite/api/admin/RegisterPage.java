@@ -21,7 +21,7 @@ public class RegisterPage {
 	private SystemControl sc = null;
 	private String caxHome = null;
 	private String emailTemplateDir = null;
-//	private String userEmailTemplate = null;
+	private String userEmailTemplate = null;
 	private String userEmailNoPassTemplate = null;
 	private String recipientAdmin = null;
 	private String adminEmailTemplate = null;
@@ -30,7 +30,7 @@ public class RegisterPage {
 		sc = new SystemControl();
 		caxHome = System.getenv("SOLR_HOME");
 		emailTemplateDir = caxHome + "\\example\\resources\\config_template\\template_email";
-//		userEmailTemplate = emailTemplateDir+"\\user_template.txt";
+		userEmailTemplate = emailTemplateDir+"\\user_template.txt";
 		userEmailNoPassTemplate = emailTemplateDir+"\\user_nopass_template.txt";
 		adminEmailTemplate = emailTemplateDir+"\\admin_template.txt";
 		recipientAdmin = emailTemplateDir+"\\admin_recipient_email_list.txt";
@@ -39,11 +39,11 @@ public class RegisterPage {
 	@POST
 	@Produces("application/xml")
 	public Viewable postParam(@QueryParam("method") String method, 
-			String body) 
+			@QueryParam("sentEmailtoUser") String sentEmailtoUser,	String body) 
 	{
 		Map<String,Object> apiResponse = new HashMap<String,Object>();		
 		if(method.equals("register")){
-			return register(body);
+			return register(body,sentEmailtoUser);
 		}else{
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
 
@@ -59,9 +59,10 @@ public class RegisterPage {
 		}
 	}
 	
-	private Viewable register(String body){
+	private Viewable register(String body, String sentEmailtoUser){
 		Map<String,Object> apiResponse = new HashMap<String,Object>();
 		List<Object> error = new ArrayList<Object>();
+		Boolean sentEmailtoUserBool = Boolean.valueOf(sentEmailtoUser); 
 		
 		try {
 			RegistrationControl register = new RegistrationControl(body);
@@ -72,7 +73,13 @@ public class RegisterPage {
 				register.setPackageFreeUser();
 				register.sendMailToAdmin(body,adminEmailTemplate,recipientAdmin);
 //				register.sendMailToRegisteredUser(body,userEmailTemplate);
-				register.sendMailToRegisteredUserNoPassword(body,userEmailNoPassTemplate);
+				if(sentEmailtoUserBool){
+					System.out.println("sending notification to user");
+//					register.sendMailToRegisteredUser(body,userEmailTemplate);
+				}
+				else{
+//					register.sendMailToRegisteredUserNoPassword(body,userEmailNoPassTemplate);
+				}
 				System.out.println("New user registered!");
 			}
 			else{

@@ -261,7 +261,16 @@ public class SecurityPage {
 		Security secure = new Security();
 		
 		try {
-			secure.setSocMedToken(username, token, type, alias, keyid, secret);
+			boolean isAvailable = secure.setSocMedToken(username, token, type, alias, keyid, secret);
+			if(!isAvailable){
+				Map<String,Object> property = new HashMap<String,Object>();
+				
+				property.put("message", "failed, alias already exists");
+				property.put("value", "1");
+				
+				apiResponse.put("items", property);
+				return new Viewable("/general/ack", apiResponse);
+			}
 		} catch (Exception e) {
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
 			errorProperty.put("code", "500");

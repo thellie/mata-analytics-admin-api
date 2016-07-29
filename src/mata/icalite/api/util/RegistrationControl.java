@@ -67,9 +67,10 @@ public class RegistrationControl {
     int UF_PASSWORD_EXPIRED = 0x800000;
 
 	public RegistrationControl(String body) throws Exception{
+		System.out.println(body);
 		JSONParser parser = new JSONParser();
 		JSONObject jsonBody = (JSONObject) parser.parse(body);
-
+		
 		email = (String) jsonBody.get("email");
 		username = (String) jsonBody.get("username");
 		firstname = (String) jsonBody.get("firstname");
