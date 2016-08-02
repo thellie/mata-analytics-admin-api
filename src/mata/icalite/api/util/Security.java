@@ -957,8 +957,16 @@ public class Security {
 	    			+ "token='"+token+"', "
 	    			+ "keyid='"+keyid+"', "
 	    			+ "secret='"+secret+"' "
-	    			+ "where "
+	    			+ "where username='"+username+"' and "
 	    			+ "alias='"+alias+"'";
+	    	if(username.equalsIgnoreCase("administrator")){
+	    		command = "update sosmedtoken set "
+		    			+ "token='"+token+"', "
+		    			+ "keyid='"+keyid+"', "
+		    			+ "secret='"+secret+"' "
+		    			+ "where "
+		    			+ "alias='"+alias+"'"; 
+	    	}
 	    	statement.executeUpdate(command);
 		    closeDB();
 	  }
@@ -968,9 +976,15 @@ public class Security {
 		  	connect = DriverManager.getConnection(protocol + "c:\\caxDB\\");
 		    Statement statement = connect.createStatement();
 		    
-		    statement.executeUpdate("DELETE FROM sosmedtoken WHERE alias='"
-		    		+ alias + "'"
-		    );
+		    String command = "DELETE FROM sosmedtoken WHERE alias='"
+		    		+ alias + "' and username='"+username+"'";
+		    
+		    if(username.equalsIgnoreCase("administrator")){
+		    	command = "DELETE FROM sosmedtoken WHERE alias='"
+			    		+ alias + "'";
+		    }
+		    
+		    statement.executeUpdate(command);
 		    
 		    closeDB();
 	  }
