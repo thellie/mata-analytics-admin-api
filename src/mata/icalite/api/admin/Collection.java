@@ -597,7 +597,7 @@ public class Collection {
 		        		if(crawler.contains("WEB")){
 		        			if(secure.derbyCheckCrawler(targetcollectionId, targetusername)){
 		        				listCrawler.add(crawler);
-		        				secure.insertLimitCrawler(targetusername, targetcollectionId);
+//		        				secure.insertLimitCrawler(targetusername, targetcollectionId);
 		        			}
 		        			else{
 		        				
@@ -669,10 +669,21 @@ public class Collection {
 				}else{
 					System.out.println("User : "+targetcollectionId+" creating collection : "+targetcollectionId+"!");
 					String sessiontarget = secure.getSession(targetusername);
+					if(sessiontarget.length()<1){
+						secure.derbyInsert(targetusername);
+						secure.derbyUpdateCollection(targetusername);
+						sessiontarget = secure.getSession(targetusername);
+					}
 					secure.addPrivilage(sessiontarget, targetcollectionId);
 					secure.addAdminPrivilage(targetcollectionId);
 					secure.insertLimitCollection(targetusername);
 					secure.createLimitCrawler(targetcollectionId, targetusername);
+					
+					int crawlerCount = 0;
+					while(crawlerCount<listCrawler.size()){
+						secure.insertLimitCrawler(targetusername, targetcollectionId);
+						crawlerCount++;
+					}
 					
 					Map<String,Object> property = new HashMap<String,Object>();
 					
