@@ -213,16 +213,20 @@ public class Security {
 	  public boolean createLimitCrawler(String collectionId, String username) throws Exception{
 		  
 		  String userpackage = checkUserPackage(username);
-		  int limit = 3;
+		  int limit = 1;
 		  
 		  if(userpackage.equalsIgnoreCase("custom")){
 			  return true;
 		  }
+		  
 		  if(userpackage.equalsIgnoreCase("gold")){
 			  limit = 5;
 		  }
 		  else if(userpackage.equalsIgnoreCase("freeuser")){
 			  limit = 1;
+		  }
+		  else if(userpackage.equalsIgnoreCase("silver")){
+			  limit = 3;
 		  }
 		  else if(userpackage.equalsIgnoreCase("diamond")){
 			  limit = 10;
@@ -243,7 +247,7 @@ public class Security {
 	  public boolean updateLimitCrawler(String collectionId, String username) throws Exception{
 		  
 		  String userpackage = checkUserPackage(username);
-		  int limit = 3;
+		  int limit = 1;
 		  
 		  if(userpackage.equalsIgnoreCase("custom")){
 			  return true;
@@ -253,6 +257,9 @@ public class Security {
 		  }
 		  else if(userpackage.equalsIgnoreCase("freeuser")){
 			  limit = 1;
+		  }
+		  else if(userpackage.equalsIgnoreCase("silver")){
+			  limit = 3;
 		  }
 		  else if(userpackage.equalsIgnoreCase("diamond")){
 			  limit = 10;
@@ -287,7 +294,7 @@ public class Security {
 		    Statement statement = connect.createStatement();
 		    ResultSet res = statement.executeQuery("SELECT * FROM collimit where username='"+username+"'"); 
 		    int curcol = 0;
-		    int maxcol = 3;
+		    int maxcol = 1;
 		    
 		    if (res.next()) {
 		    	curcol = res.getInt("curcol");
@@ -350,7 +357,7 @@ public class Security {
 	  public boolean derbyInsertCollection(String username) throws Exception{
 		  
 		  String userpackage = checkUserPackage(username);
-		  int limit = 3;
+		  int limit = 1;
 		  
 		  if(userpackage.equalsIgnoreCase("custom")){
 			  return true;
@@ -360,8 +367,12 @@ public class Security {
 		  }
 		  else if(userpackage.equalsIgnoreCase("diamond")){
 			  limit = 5;
-		  }else if(userpackage.equalsIgnoreCase("freeuser")){
+		  }
+		  else if(userpackage.equalsIgnoreCase("freeuser")){
 			  limit = 1;
+		  }
+		  else if(userpackage.equalsIgnoreCase("silver")){
+			  limit = 3;
 		  }
 		  if(username.equalsIgnoreCase("administrator")){
 			  limit = 100;
@@ -378,7 +389,7 @@ public class Security {
 	  public boolean derbyUpdateCollection(String username) throws Exception{
 		  
 		  String userpackage = checkUserPackage(username);
-		  int limit = 3;
+		  int limit = 1;
 		  
 		  if(userpackage.equalsIgnoreCase("custom")){
 			  return true;
@@ -391,6 +402,9 @@ public class Security {
 		  }
 		  else if(userpackage.equalsIgnoreCase("freeuser")){
 			  limit = 1;
+		  }
+		  else if(userpackage.equalsIgnoreCase("silver")){
+			  limit = 3;
 		  }
 		  
 		  if(username.equalsIgnoreCase("administrator")){
@@ -463,7 +477,7 @@ public class Security {
 		    Statement statement = connect.createStatement();
 		    ResultSet res = statement.executeQuery("SELECT * FROM crawllimit where username='"+username+"' AND collection='"+collectionId+"'"); 
 		    int curcol = 0;
-		    int maxcol = 3;
+		    int maxcol = 1;
 		    
 		    if (res.next()) {
 		    	curcol = res.getInt("curcrawl");

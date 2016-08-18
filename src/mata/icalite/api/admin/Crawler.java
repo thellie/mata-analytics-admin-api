@@ -136,6 +136,8 @@ public class Crawler {
 			return getTotalDocument(collectionId, crawlerId);
 		}else if(method.equals("getListTemplate")){
 			return getListTemplate(type);
+		}else if(method.equals("listAvailableWeb")){
+			return listAvailableWeb(type);
 		}else if(method.equals("checkIfUrlIsOnList")){
 			return checkIfUrlIsOnList(encodedUrl);
 		}else if(method.equals("getTemplate")){
@@ -528,7 +530,7 @@ public class Crawler {
 		List<Object> error = new ArrayList<Object>();
 		Security secure = new Security();
 		String username = "";
-		boolean isOnList = false;
+//		boolean isOnList = false;
 		try {
 			username = secure.getUser(sessionID);
 			secure.updateLimitCrawler(collectionId, username);
@@ -631,18 +633,17 @@ public class Crawler {
 								domainUrl = URI.getHost();
 								domainUrl = InternetDomainName.from(domainUrl).topPrivateDomain().name();
 								
-								String templateDir = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\"+type+"\\"+domainUrl;
-								ArrayList<String> listTemplate = new ArrayList<String>();
-								listTemplate = fm.listFile(templateDir);
-								for(String template : listTemplate){
-									if(template.toLowerCase().contains(domainUrl.toLowerCase())){
-										isOnList = true;
-										break;
-									}
-								}
-								if(isOnList){
-									fm.createDir(collectionDir+"\\"+domainUrl);
-									FileUtils.copyDirectory(new File(templateDir), new File(collectionDir+"\\"+domainUrl));
+								String templateDir = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\"+type;
+//								ArrayList<String> listTemplate = new ArrayList<String>();
+//								listTemplate = fm.listFile(templateDir);
+//								for(String template : listTemplate){
+//									if(template.toLowerCase().contains(domainUrl.toLowerCase())){
+//										isOnList = true;
+//										break;
+//									}
+//								}
+								if(true){
+									FileUtils.copyDirectory(new File(templateDir), new File(collectionDir));
 								}
 							}
 						} catch (Exception e) {
@@ -1109,7 +1110,7 @@ public class Crawler {
 			domainUrl = URI.getHost();
 			domainUrl = InternetDomainName.from(domainUrl).topPrivateDomain().name();
 			
-			String templateDir = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\"+type+"\\"+domainUrl;
+			String templateDir = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\"+type;
 			ArrayList<String> listTemplate = new ArrayList<String>();
 			listTemplate = fm.listFile(templateDir);
 			for(String template : listTemplate){
@@ -1120,7 +1121,7 @@ public class Crawler {
 			}
 			if(isOnList){
 				fm.createDir(collectionDir+"\\"+domainUrl);
-				FileUtils.copyDirectory(new File(templateDir), new File(collectionDir+"\\"+domainUrl));
+//				FileUtils.copyDirectory(new File(templateDir), new File(collectionDir+"\\"+domainUrl));
 			}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -1546,7 +1547,7 @@ public class Crawler {
 		
 		if(new File(collectionDir + "\\"+type).exists()){
 			
-			String goRun =  "java -jar \"" + collectionDir + "\\"+type+"\"\r\nexit";
+			String goRun =  "java -jar \"" + collectionDir + "\\"+type+"\" > "+collectionDir+"\\crawlTrace.log \r\nexit";
 			try {
 				fm.fileWriter(collectionDir+"\\startcrawl.bat", goRun, false);
 				Runtime.getRuntime().exec("cmd /c start /min "+collectionDir+"\\startcrawl.bat");
@@ -1990,6 +1991,40 @@ public class Crawler {
 		}
 	}
 	
+	private Viewable listAvailableWeb(String type){
+		Map<String,Object> apiResponse = new HashMap<String,Object>();
+		ArrayList<String> listWeb = new ArrayList<String>();
+		
+		List<Object> error = new ArrayList<Object>();
+		String listNewsFolder = caxHome + "\\example\\resources\\config_template\\crawler\\cfgfile\\"+type;
+		FileManager fman = new FileManager();
+		listWeb= fman.listFolder(listNewsFolder);
+		String xmlbuilder = "";
+		
+		for(String web : listWeb){
+			listWeb.add(web);
+		}
+		
+		if(listWeb!=null){
+			for(String template : listWeb){
+				xmlbuilder = ""+xmlbuilder+"<template>http://"+template+"/</template>\r\n";
+			}
+		}
+		
+		if(error.size() > 0){
+			apiResponse.put("items", error);
+			return new Viewable("/exception/error", apiResponse);
+		}else{
+			Map<String,Object> property = new HashMap<String,Object>();
+			
+			property.put("message", xmlbuilder);
+			property.put("value", "0");
+			
+			apiResponse.put("items", property);
+			return new Viewable("/general/ack", apiResponse);
+		}
+	}
+	
 	private int randInt(int min, int max) {
 	    Random rand = new Random();
 
@@ -1997,4 +2032,6 @@ public class Crawler {
 
 	    return randomNum;
 	}
+	
+	
 }
