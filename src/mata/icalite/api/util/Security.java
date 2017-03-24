@@ -138,7 +138,7 @@ public class Security {
 	    	statement.executeUpdate("insert into userpackage values ('"+username+"','ULTIMATE')");
 	    }
 	    else{
-	    	statement.executeUpdate("insert into userpackage values ('"+username+"','silver')"); 
+	    	statement.executeUpdate("insert into userpackage values ('"+username+"','freeuser')"); 
 	    }
 	    closeDB();
 	    
@@ -158,7 +158,7 @@ public class Security {
 	    else{
 	    	System.out.println("creating first time login user package for :"+username+"");
 	    	addFirstUserPackage(username);
-	    	packageuser = "silver";
+	    	packageuser = "freeuser";
 	    }
 	    closeDB();
 		
@@ -226,7 +226,7 @@ public class Security {
 			  limit = 1;
 		  }
 		  else if(userpackage.equalsIgnoreCase("silver")){
-			  limit = 3;
+			  limit = 5;
 		  }
 		  else if(userpackage.equalsIgnoreCase("diamond")){
 			  limit = 10;
@@ -259,7 +259,7 @@ public class Security {
 			  limit = 1;
 		  }
 		  else if(userpackage.equalsIgnoreCase("silver")){
-			  limit = 3;
+			  limit = 5;
 		  }
 		  else if(userpackage.equalsIgnoreCase("diamond")){
 			  limit = 10;

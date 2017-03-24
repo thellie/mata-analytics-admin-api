@@ -1385,13 +1385,13 @@ public class Collection {
 		listFileToChange.add(collectionDir+"\\pearinstall\\desc\\aeDescriptor.xml");
 		listFileToChange.add(collectionDir+"\\pearinstall\\installpear.bat");
 		listFileToChange.add(collectionDir+"\\pearinstall\\tobin.bat");
-		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAXAnno\\com.mata.genanno.MAXAnno_pear.xml");
-		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAXAnno\\desc\\LangID0.xml");
-		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAXAnno\\desc\\LWAnnotator1.xml");
-		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAXAnno\\desc\\LWShallowParser3.xml");
-		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAXAnno\\metadata\\install.xml");
-		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAXAnno\\metadata\\PEAR.properties");
-		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAXAnno\\metadata\\setenv.txt");
+		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAX\\com.mata.genanno.MAX_pear.xml");
+		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAX\\desc\\LangID0.xml");
+		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAX\\desc\\LWAnnotator1.xml");
+		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAX\\desc\\LWShallowParser3.xml");
+		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAX\\metadata\\install.xml");
+		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAX\\metadata\\PEAR.properties");
+		listFileToChange.add(collectionDir+"\\peartemp\\com.mata.genanno.MAX\\metadata\\setenv.txt");
 		listFileToChange.add(collectionDir+"\\peartemp\\tobin.bat");
 		listFileToChange.add(collectionDir+"\\StartPearManager.bat");		
 		

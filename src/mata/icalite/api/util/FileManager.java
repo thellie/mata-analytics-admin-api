@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -19,26 +20,53 @@ import org.apache.commons.io.filefilter.TrueFileFilter;
 
 
 public class FileManager {
+	
+	public double fileSize(String filename){
+		
+//		File file =new File("c:\\java_xml_logo.jpg");
+		File file = new File(filename);
+		double output = 0;
 
-	  public String readData(String filename) throws Exception{
+		if(file.exists()){
+
+			double bytes = file.length();
+			double kilobytes = (bytes / 1024);
+			output = kilobytes;
+			
+		}else{
+			 System.out.println("File does not exists!");
+		}
+
+		return output;
+	}
+
+	  public String readData(String filename){
 		  BufferedReader br;
 		  String outFinal;
 		  br = null;
 		  outFinal = "";
-	        
-		  br = new BufferedReader(new FileReader(filename));
-		  String sCurrentLine;
-		  while((sCurrentLine = br.readLine()) != null) 
-		  {
-			  outFinal = (new StringBuilder(String.valueOf(outFinal))).append(sCurrentLine).append("\r\n").toString();
+		  try{
+			  br = new BufferedReader(new FileReader(filename));
+			  String sCurrentLine;
+			  while((sCurrentLine = br.readLine()) != null) 
+			  {
+				  outFinal = (new StringBuilder(String.valueOf(outFinal))).append(sCurrentLine).append("\r\n").toString();
+			  }
 		  }
-	        
-		  if(br != null)
-	      {
-			  br.close();
-	      }
-	        
+		  catch(Exception e){
+			  
+		  }
+		  finally{
+			  try {
+				br.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		  }
+		  
 		  return outFinal;
+		 
 	  }
 	  
 	  public void fileWriter(String outfilename, String values, boolean writeAppend) throws Exception{

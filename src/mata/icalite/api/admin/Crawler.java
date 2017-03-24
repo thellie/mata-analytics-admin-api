@@ -642,8 +642,11 @@ public class Crawler {
 //										break;
 //									}
 //								}
+								File cfgfile = new File(collectionDir+"\\cfgfile");
+								cfgfile.mkdirs();
+								
 								if(true){
-									FileUtils.copyDirectory(new File(templateDir), new File(collectionDir));
+									FileUtils.copyDirectory(new File(templateDir), cfgfile);
 								}
 							}
 						} catch (Exception e) {
@@ -1355,6 +1358,15 @@ public class Crawler {
 		File file = new File(filePath);
 		
 		if(urlFile.exists()){
+			double size = fm.fileSize(urlFilePath);
+			if(size>300){
+				try {
+					fm.fileWriter(urlFilePath, "", false);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 			try {
 				out = fm.readData(urlFilePath);
 				out = out.replace("&", "&amp;")
@@ -1374,6 +1386,15 @@ public class Crawler {
 				e.printStackTrace();
 			}
 		}else if(file.exists()){
+			double size = fm.fileSize(urlFilePath);
+			if(size>300){
+				try {
+					fm.fileWriter(urlFilePath, "", false);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 			try {
 				out = fm.readData(filePath);
 				out = out.replace("&", "&amp;")
@@ -1546,21 +1567,37 @@ public class Crawler {
 		}
 		
 		if(new File(collectionDir + "\\"+type).exists()){
-			
-			String goRun =  "java -jar \"" + collectionDir + "\\"+type+"\" > "+collectionDir+"\\crawlTrace.log \r\nexit";
-			try {
-				fm.fileWriter(collectionDir+"\\startcrawl.bat", goRun, false);
-				Runtime.getRuntime().exec("cmd /c start /min "+collectionDir+"\\startcrawl.bat");
-			} catch (Exception e) {
-				
-				Map<String,Object> errorProperty = new HashMap<String,Object>();
-				errorProperty.put("code", "500");
-				errorProperty.put("message", e.toString());
-				errorProperty.put("detail", sc.getStackTrace(e));
-				
-				error.add(errorProperty);
-				
-				e.printStackTrace();
+			if(new File(collectionDir+"\\startcrawl.bat").exists()){
+				try{
+					Runtime.getRuntime().exec("cmd /c start /min "+collectionDir+"\\startcrawl.bat");
+				}
+				catch(Exception e){
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
+			}
+			else{
+				String goRun =  "java -jar \"" + collectionDir + "\\"+type+"\" > "+collectionDir+"\\crawlTrace.log \r\nexit";
+				try {
+					fm.fileWriter(collectionDir+"\\startcrawl.bat", goRun, false);
+					Runtime.getRuntime().exec("cmd /c start /min "+collectionDir+"\\startcrawl.bat");
+				} catch (Exception e) {
+					
+					Map<String,Object> errorProperty = new HashMap<String,Object>();
+					errorProperty.put("code", "500");
+					errorProperty.put("message", e.toString());
+					errorProperty.put("detail", sc.getStackTrace(e));
+					
+					error.add(errorProperty);
+					
+					e.printStackTrace();
+				}
 			}
 		}else{
 			Map<String,Object> errorProperty = new HashMap<String,Object>();
